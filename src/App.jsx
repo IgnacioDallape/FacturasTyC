@@ -7,6 +7,7 @@ const navigation = [
   { id: "products", label: "Productos y stock", icon: "box" },
   { id: "purchases", label: "Compras", icon: "cart" },
   { id: "costs", label: "Costos", icon: "chart" },
+  { id: "finances", label: "Finanzas", icon: "wallet" },
   { id: "tasks", label: "Tareas", icon: "check" },
   { id: "settings", label: "Configuracion", icon: "gear" },
 ];
@@ -73,6 +74,14 @@ const initialState = {
     { id: "c3", name: "Compra de semillas", type: "variable", amount: 84000, date: "2026-05-03" },
     { id: "c4", name: "Envases de vidrio", type: "variable", amount: 47000, date: "2026-05-08" },
   ],
+  finances: {
+    cash: 240000,
+    incomes: [
+      { id: "i1", month: "2026-03", amount: 320000, note: "Ventas marzo" },
+      { id: "i2", month: "2026-04", amount: 410000, note: "Ventas abril" },
+      { id: "i3", month: "2026-05", amount: 380000, note: "Ventas mayo" },
+    ],
+  },
   tasks: [
     { id: "t1", title: "Revisar stock de suplementos", priority: "Alta", dueDate: "2026-05-17", done: false, view: "Hoy" },
     { id: "t2", title: "Actualizar precios del invierno", priority: "Media", dueDate: "2026-05-19", done: false, view: "Semana" },
@@ -119,6 +128,14 @@ const blankTask = {
   view: "Semana",
 };
 
+const blankIncome = {
+  month: new Date().toISOString().slice(0, 7),
+  amount: "",
+  note: "",
+};
+
+const chartColors = ["#B39254", "#8CA88E", "#C98462", "#D3C9B4", "#7E6C54", "#D9A7A0"];
+
 function App() {
   const [appState, setAppState] = usePersistedState(STORAGE_KEY, initialState);
   const [activeSection, setActiveSection] = useState("dashboard");
@@ -130,6 +147,8 @@ function App() {
   const products = appState.products || [];
   const purchases = appState.purchases || [];
   const costs = appState.costs || appState.expenses || [];
+  const finances = appState.finances || initialState.finances;
+  const incomes = finances.incomes || [];
   const tasks = appState.tasks || [];
 
   const lowStockProducts = useMemo(
@@ -150,6 +169,7 @@ function App() {
   const fixedTotal = useMemo(() => sumBy(fixedCosts, "amount"), [fixedCosts]);
   const variableTotal = useMemo(() => sumBy(variableCosts, "amount"), [variableCosts]);
   const monthlyCosts = fixedTotal + variableTotal;
+  const monthlyIncome = useMemo(() => sumBy(incomes, "amount"), [incomes]);
   const stockUnits = useMemo(() => products.reduce((total, product) => total + Number(product.stock), 0), [products]);
   const stockValue = useMemo(
     () => products.reduce((total, product) => total + Number(product.price || 0) * Number(product.stock || 0), 0),
@@ -162,6 +182,13 @@ function App() {
 
   const updateProfile = (field, value) => {
     setAppState((current) => ({ ...current, profile: { ...current.profile, [field]: value } }));
+  };
+
+  const updateFinances = (updates) => {
+    setAppState((current) => ({
+      ...current,
+      finances: { ...initialState.finances, ...current.finances, ...updates },
+    }));
   };
 
   const addProduct = (formValues) => {
@@ -254,6 +281,29 @@ function App() {
     updateState("costs", costs.filter((cost) => cost.id !== costId));
   };
 
+  const updateCash = (value) => {
+    updateFinances({ cash: Number(value || 0) });
+  };
+
+  const addIncome = (formValues) => {
+    if (!formValues.month || !formValues.amount) return;
+    updateFinances({
+      incomes: [
+        {
+          id: crypto.randomUUID(),
+          month: formValues.month,
+          amount: Number(formValues.amount || 0),
+          note: formValues.note,
+        },
+        ...incomes,
+      ],
+    });
+  };
+
+  const deleteIncome = (incomeId) => {
+    updateFinances({ incomes: incomes.filter((income) => income.id !== incomeId) });
+  };
+
   const addTask = (formValues) => {
     if (!formValues.title.trim()) return;
     updateState("tasks", [{ id: crypto.randomUUID(), ...formValues }, ...tasks]);
@@ -320,8 +370,13 @@ function App() {
             openTasks={openTasks}
             monthlyCosts={monthlyCosts}
             stockValue={stockValue}
+            fixedCosts={fixedCosts}
+            variableCosts={variableCosts}
             fixedTotal={fixedTotal}
             variableTotal={variableTotal}
+            finances={finances}
+            incomes={incomes}
+            monthlyIncome={monthlyIncome}
           />
         )}
 
@@ -356,6 +411,17 @@ function App() {
             variableTotal={variableTotal}
             onCreate={() => setShowCostModal(true)}
             onDelete={deleteCost}
+          />
+        )}
+
+        {activeSection === "finances" && (
+          <FinancesView
+            finances={finances}
+            incomes={incomes}
+            monthlyIncome={monthlyIncome}
+            onCashChange={updateCash}
+            onAddIncome={addIncome}
+            onDeleteIncome={deleteIncome}
           />
         )}
 
@@ -407,15 +473,17 @@ const sectionTitles = {
   products: "Productos y stock",
   purchases: "Compras",
   costs: "Costos",
+  finances: "Finanzas",
   tasks: "Tareas",
   settings: "Configuracion",
 };
 
 const sectionDescriptions = {
-  dashboard: "Resumen rapido del negocio, stock, compras, tareas y costos del mes.",
+  dashboard: "Indicadores visuales de stock, costos e ingresos para decidir rapido.",
   products: "Alta rapida, edicion simple y control directo de cantidades.",
   purchases: "Lista de compras tipo super: producto, cantidad, precio opcional y lugar de compra.",
   costs: "Costos fijos y variables separados para entender mejor los numeros.",
+  finances: "Plata disponible e ingresos mes a mes.",
   tasks: "Tareas del dia y la semana con opcion de limpiar las realizadas.",
   settings: "Preferencias basicas del negocio.",
 };
@@ -444,30 +512,42 @@ function DashboardView({
   openTasks,
   monthlyCosts,
   stockValue,
+  fixedCosts,
+  variableCosts,
   fixedTotal,
   variableTotal,
+  finances,
+  incomes,
+  monthlyIncome,
 }) {
+  const stockChart = products.map((product) => ({
+    label: product.name,
+    value: Number(product.stock || 0),
+    detail: `${formatAmount(product.stock)} ${product.unit}`,
+  }));
+  const fixedCostChart = fixedCosts.map((cost) => ({ label: cost.name, value: Number(cost.amount), detail: formatDate(cost.date) }));
+  const variableCostChart = variableCosts.map((cost) => ({ label: cost.name, value: Number(cost.amount), detail: formatDate(cost.date) }));
+
   return (
     <section className="view-grid">
       <div className="stats-grid">
         <StatCard label="Productos" value={products.length} detail={`${lowStockProducts.length} con stock bajo`} icon="box" />
         <StatCard label="Compras pendientes" value={pendingPurchases.length} detail="Items por comprar" icon="cart" />
-        <StatCard label="Tareas abiertas" value={openTasks.length} detail="Por hacer" icon="check" />
-        <StatCard label="Costos del mes" value={formatCurrency(monthlyCosts)} detail="Fijos + variables" icon="chart" />
+        <StatCard label="Plata disponible" value={formatCurrency(finances.cash)} detail="Caja actual" icon="wallet" />
+        <StatCard label="Ingresos cargados" value={formatCurrency(monthlyIncome)} detail="Total historico" icon="chart" />
       </div>
 
-      <section className="summary-band">
-        <div>
-          <span className="badge">Resumen</span>
-          <h3>El negocio, claro y a mano</h3>
-          <p>Stock bajo, compras pendientes, tareas y costos visibles sin vueltas.</p>
-        </div>
-        <div className="hero-metrics">
-          <MiniMetric label="Valor en stock" value={formatCurrency(stockValue)} />
-          <MiniMetric label="Costos fijos" value={formatCurrency(fixedTotal)} />
-          <MiniMetric label="Costos variables" value={formatCurrency(variableTotal)} />
-        </div>
-      </section>
+      <div className="dashboard-charts">
+        <PieChartCard title="Productos y stock" total={formatAmount(stockChart.reduce((total, item) => total + item.value, 0))} items={stockChart} />
+        <PieChartCard title="Costos fijos" total={formatCurrency(fixedTotal)} items={fixedCostChart} emptyText="Sin costos fijos" />
+        <PieChartCard title="Costos variables" total={formatCurrency(variableTotal)} items={variableCostChart} emptyText="Sin costos variables" />
+        <PieChartCard
+          title="Ingresos mensuales"
+          total={formatCurrency(monthlyIncome)}
+          items={incomes.map((income) => ({ label: formatMonth(income.month), value: Number(income.amount), detail: income.note }))}
+          emptyText="Sin ingresos"
+        />
+      </div>
 
       <Card title="Stock bajo" actionLabel="Reponer">
         {lowStockProducts.length ? (
@@ -773,6 +853,93 @@ function CostsView({ fixedCosts, variableCosts, fixedTotal, variableTotal, onCre
   );
 }
 
+function FinancesView({ finances, incomes, monthlyIncome, onCashChange, onAddIncome, onDeleteIncome }) {
+  const [formValues, setFormValues] = useState(blankIncome);
+
+  const submitIncome = (event) => {
+    event.preventDefault();
+    onAddIncome(formValues);
+    setFormValues(blankIncome);
+  };
+
+  return (
+    <section className="view-grid">
+      <div className="stats-grid compact-stats">
+        <StatCard label="Plata disponible" value={formatCurrency(finances.cash)} detail="Caja actual" icon="wallet" />
+        <StatCard label="Ingresos cargados" value={formatCurrency(monthlyIncome)} detail="Total historico" icon="chart" />
+        <StatCard label="Meses cargados" value={incomes.length} detail="Registros de ingresos" icon="layers" />
+      </div>
+
+      <Card title="Caja actual" actionLabel="Editable">
+        <label className="money-field">
+          Cuanta plata tenemos
+          <input
+            type="number"
+            min="0"
+            value={finances.cash}
+            onChange={(event) => onCashChange(event.target.value)}
+          />
+        </label>
+      </Card>
+
+      <Card title="Ingresos mes a mes" actionLabel={`${incomes.length} registros`}>
+        <form className="quick-add-form finance-form" onSubmit={submitIncome}>
+          <label>
+            Mes
+            <input
+              type="month"
+              value={formValues.month}
+              onChange={(event) => setFormValues({ ...formValues, month: event.target.value })}
+            />
+          </label>
+          <label>
+            Ingreso
+            <input
+              type="number"
+              min="0"
+              value={formValues.amount}
+              onChange={(event) => setFormValues({ ...formValues, amount: event.target.value })}
+              placeholder="Ej: 250000"
+            />
+          </label>
+          <label>
+            Nota
+            <input
+              value={formValues.note}
+              onChange={(event) => setFormValues({ ...formValues, note: event.target.value })}
+              placeholder="Opcional"
+            />
+          </label>
+          <button className="primary-button" type="submit">
+            Agregar
+          </button>
+        </form>
+
+        {incomes.length ? (
+          <div className="list-stack">
+            {incomes.map((income) => (
+              <div className="list-row" key={income.id}>
+                <div>
+                  <strong>{formatMonth(income.month)}</strong>
+                  <p>{income.note || "Ingreso mensual"}</p>
+                </div>
+                <div className="list-meta">
+                  <strong>{formatCurrency(income.amount)}</strong>
+                  <button className="ghost-button danger" onClick={() => onDeleteIncome(income.id)}>
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="Sin ingresos" message="Carga el primer ingreso mensual para verlo en el dashboard." />
+        )}
+      </Card>
+    </section>
+  );
+}
+
 function CostList({ items, onDelete }) {
   if (!items.length) {
     return <EmptyState title="Sin costos" message="Todavia no hay registros en esta categoria." />;
@@ -1015,6 +1182,42 @@ function MiniMetric({ label, value }) {
   );
 }
 
+function PieChartCard({ title, total, items, emptyText = "Sin datos" }) {
+  const visibleItems = items.filter((item) => Number(item.value) > 0);
+
+  return (
+    <article className="chart-card">
+      <div className="chart-card-header">
+        <div>
+          <h3>{title}</h3>
+          <strong>{total}</strong>
+        </div>
+      </div>
+
+      {visibleItems.length ? (
+        <div className="pie-layout">
+          <div className="pie-chart" style={{ background: buildPieGradient(visibleItems) }}>
+            <span />
+          </div>
+          <div className="pie-legend">
+            {visibleItems.map((item, index) => (
+              <div className="pie-legend-row" key={`${item.label}-${index}`}>
+                <span className="legend-dot" style={{ background: chartColors[index % chartColors.length] }} />
+                <div>
+                  <strong>{item.label}</strong>
+                  <p>{item.detail || formatCurrency(item.value)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <EmptyState title={emptyText} message="Carga datos para visualizar esta torta." />
+      )}
+    </article>
+  );
+}
+
 function TaskList({ items, onToggle }) {
   if (!items.length) {
     return <EmptyState title="Sin tareas" message="No hay tareas en esta vista." />;
@@ -1056,6 +1259,7 @@ function Icon({ name }) {
     layers: "M12 4 3.5 8.5 12 13l8.5-4.5z M5.5 12 12 15.5 18.5 12 M5.5 15.5 12 19l6.5-3.5",
     cart: "M5 6h2l1.2 7.2A2 2 0 0 0 10.2 15H17a2 2 0 0 0 1.9-1.4L20 8H8.2 M10 19a1.5 1.5 0 1 0 0 .01 M17 19a1.5 1.5 0 1 0 0 .01",
     chart: "M5 18V9 M12 18V5 M19 18v-7",
+    wallet: "M4 7.5A2.5 2.5 0 0 1 6.5 5H18a2 2 0 0 1 2 2v2H7a2 2 0 0 0 0 4h13v4a2 2 0 0 1-2 2H6.5A2.5 2.5 0 0 1 4 16.5z M16 13h4 M7 9h13",
     check: "M5 12.5 9.2 16.5 19 7.5",
     gear: "M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm7 3.5-.8-.3a6.9 6.9 0 0 0-.4-1l.5-.7a1 1 0 0 0-.1-1.3l-1.4-1.4a1 1 0 0 0-1.3-.1l-.7.5a6.9 6.9 0 0 0-1-.4L14 4.9A1 1 0 0 0 13 4h-2a1 1 0 0 0-1 .9l-.3.8a6.9 6.9 0 0 0-1 .4L8 5.6a1 1 0 0 0-1.3.1L5.3 7.1a1 1 0 0 0-.1 1.3l.5.7a6.9 6.9 0 0 0-.4 1L4.5 12a1 1 0 0 0 0 2l.8.3a6.9 6.9 0 0 0 .4 1l-.5.7a1 1 0 0 0 .1 1.3l1.4 1.4a1 1 0 0 0 1.3.1l.7-.5a6.9 6.9 0 0 0 1 .4l.3.8a1 1 0 0 0 1 .9h2a1 1 0 0 0 1-.9l.3-.8a6.9 6.9 0 0 0 1-.4l.7.5a1 1 0 0 0 1.3-.1l1.4-1.4a1 1 0 0 0 .1-1.3l-.5-.7a6.9 6.9 0 0 0 .4-1l.8-.3a1 1 0 0 0 0-2Z",
     menu: "M4 7h16 M4 12h16 M4 17h16",
@@ -1102,10 +1306,31 @@ function sumBy(items, key) {
   return items.reduce((total, item) => total + Number(item[key] || 0), 0);
 }
 
+function buildPieGradient(items) {
+  const total = items.reduce((sum, item) => sum + Number(item.value || 0), 0);
+  let cursor = 0;
+
+  const segments = items.map((item, index) => {
+    const start = cursor;
+    const size = total ? (Number(item.value) / total) * 100 : 0;
+    cursor += size;
+    const color = chartColors[index % chartColors.length];
+    return `${color} ${start}% ${cursor}%`;
+  });
+
+  return `conic-gradient(${segments.join(", ")})`;
+}
+
 function formatAmount(value) {
   return new Intl.NumberFormat("es-AR", {
     maximumFractionDigits: 2,
   }).format(Number(value || 0));
+}
+
+function formatMonth(value) {
+  if (!value) return "Sin mes";
+  const [year, month] = value.split("-");
+  return new Intl.DateTimeFormat("es-AR", { month: "long", year: "numeric" }).format(new Date(Number(year), Number(month) - 1, 1));
 }
 
 function formatCurrency(value) {

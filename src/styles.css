@@ -74,7 +74,6 @@ button {
 .sidebar-footer,
 .card,
 .stat-card,
-.summary-band,
 .table-card,
 .modal-card {
   background: var(--surface);
@@ -127,8 +126,7 @@ button {
 }
 
 .brand-card h1,
-.topbar h2,
-.summary-band h3 {
+.topbar h2 {
   margin: 0;
   font-family: "Cormorant Garamond", serif;
   font-weight: 600;
@@ -258,7 +256,7 @@ button {
 }
 
 .view-grid > .stats-grid,
-.view-grid > .summary-band,
+.view-grid > .dashboard-charts,
 .view-grid > .section-toolbar,
 .view-grid > .table-card,
 .view-stack > .table-card {
@@ -305,25 +303,6 @@ button {
   font-size: 1.35rem;
 }
 
-.summary-band {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1.6rem;
-  border-radius: var(--radius-xl);
-}
-
-.summary-band h3 {
-  margin-top: 0.7rem;
-  font-size: clamp(2rem, 4vw, 3rem);
-}
-
-.summary-band p {
-  max-width: 700px;
-  margin-top: 0.85rem;
-  color: var(--text-soft);
-}
-
 .hero-metrics {
   display: grid;
   gap: 0.8rem;
@@ -340,6 +319,91 @@ button {
   display: block;
   margin-top: 0.3rem;
   font-size: 1.6rem;
+}
+
+.dashboard-charts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.chart-card {
+  display: grid;
+  gap: 1rem;
+  min-height: 330px;
+  padding: 1.2rem;
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(28px);
+}
+
+.chart-card-header h3,
+.chart-card-header strong {
+  margin: 0;
+}
+
+.chart-card-header strong {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 1.35rem;
+}
+
+.pie-layout {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.pie-chart {
+  position: relative;
+  width: min(176px, 100%);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(73, 59, 40, 0.06);
+}
+
+.pie-chart span {
+  position: absolute;
+  inset: 24%;
+  border-radius: 50%;
+  background: #fffdf8;
+  box-shadow: inset 0 0 0 1px rgba(179, 146, 84, 0.14);
+}
+
+.pie-legend {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.pie-legend-row {
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  gap: 0.6rem;
+  align-items: start;
+}
+
+.pie-legend-row strong,
+.pie-legend-row p {
+  margin: 0;
+}
+
+.pie-legend-row strong {
+  font-size: 0.86rem;
+}
+
+.pie-legend-row p {
+  color: var(--text-soft);
+  font-size: 0.82rem;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 0.25rem;
+  border-radius: 50%;
 }
 
 .card,
@@ -557,6 +621,11 @@ td span {
   grid-template-columns: 1.4fr 0.65fr 0.8fr 1fr auto;
 }
 
+.quick-add-form.finance-form {
+  grid-template-columns: 0.8fr 0.9fr 1.4fr auto;
+  box-shadow: none;
+}
+
 .quick-add-form label {
   display: grid;
   gap: 0.45rem;
@@ -584,6 +653,13 @@ td span {
 .card-toolbar {
   display: flex;
   justify-content: flex-end;
+}
+
+.money-field {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 420px;
+  font-weight: 700;
 }
 
 .section-toolbar {
@@ -860,12 +936,12 @@ textarea:focus {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .view-grid > * {
-    grid-column: 1 / -1;
+  .dashboard-charts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .summary-band {
-    flex-direction: column;
+  .view-grid > * {
+    grid-column: 1 / -1;
   }
 
   .notes-grid {
@@ -881,7 +957,9 @@ textarea:focus {
   .stats-grid,
   .form-grid,
   .quick-add-form,
-  .quick-add-form.purchases-form {
+  .quick-add-form.purchases-form,
+  .quick-add-form.finance-form,
+  .dashboard-charts {
     grid-template-columns: 1fr;
   }
 
