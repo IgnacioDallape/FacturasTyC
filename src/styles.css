@@ -542,7 +542,7 @@ td span {
 
 .quick-add-form {
   display: grid;
-  grid-template-columns: 1.4fr 0.7fr 0.7fr 0.9fr auto;
+  grid-template-columns: 1.35fr 0.62fr 0.62fr 0.78fr 1fr auto;
   gap: 0.9rem;
   align-items: end;
   padding: 1rem;
@@ -570,13 +570,20 @@ td span {
 
 .stock-stepper {
   display: inline-grid;
-  grid-template-columns: 40px minmax(34px, auto) 40px;
+  grid-template-columns: 40px 92px 40px;
   gap: 0.4rem;
   align-items: center;
 }
 
-.stock-stepper strong {
+.stock-input {
+  min-height: 42px;
+  padding: 0.55rem 0.4rem;
   text-align: center;
+}
+
+.card-toolbar {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .section-toolbar {

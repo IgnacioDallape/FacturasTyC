@@ -160,6 +160,10 @@ function App() {
     setAppState((current) => ({ ...current, [key]: value }));
   };
 
+  const updateProfile = (field, value) => {
+    setAppState((current) => ({ ...current, profile: { ...current.profile, [field]: value } }));
+  };
+
   const addProduct = (formValues) => {
     const product = normalizeProduct(formValues);
     if (!product.name.trim()) return;
@@ -190,6 +194,17 @@ function App() {
     );
   };
 
+  const setProductStock = (productId, value) => {
+    const normalizedValue = value.replace(",", ".");
+
+    updateState(
+      "products",
+      products.map((product) =>
+        product.id === productId ? { ...product, stock: normalizedValue === "" ? "" : Math.max(0, Number(normalizedValue)) } : product,
+      ),
+    );
+  };
+
   const addPurchase = (formValues) => {
     if (!formValues.item.trim()) return;
     updateState("purchases", [
@@ -214,6 +229,10 @@ function App() {
 
   const deletePurchase = (purchaseId) => {
     updateState("purchases", purchases.filter((purchase) => purchase.id !== purchaseId));
+  };
+
+  const deleteDonePurchases = () => {
+    updateState("purchases", purchases.filter((purchase) => !purchase.done));
   };
 
   const addCost = (formValues) => {
@@ -282,8 +301,6 @@ function App() {
         </nav>
 
         <div className="sidebar-footer">
-          <p className="eyebrow">A cargo</p>
-          <strong>{appState.profile.owner}</strong>
           <span className="badge muted">Pesos argentinos</span>
         </div>
       </aside>
@@ -317,6 +334,7 @@ function App() {
             onEdit={setEditingProduct}
             onDelete={deleteProduct}
             onStockChange={adjustStock}
+            onStockSet={setProductStock}
           />
         )}
 
@@ -326,6 +344,7 @@ function App() {
             onAdd={addPurchase}
             onToggle={togglePurchase}
             onDelete={deletePurchase}
+            onDeleteDone={deleteDonePurchases}
           />
         )}
 
@@ -351,7 +370,7 @@ function App() {
         )}
 
         {activeSection === "settings" && (
-          <SettingsView settings={appState.settings} profile={appState.profile} onSave={saveSettings} />
+          <SettingsView settings={appState.settings} profile={appState.profile} onSave={saveSettings} onProfileChange={updateProfile} />
         )}
       </main>
 
@@ -458,7 +477,7 @@ function DashboardView({
                 <div>
                   <strong>{product.name}</strong>
                   <p>
-                    {product.stock} {product.unit} disponibles, minimo {product.minStock}
+                    {formatAmount(product.stock)} {product.unit} disponibles, minimo {formatAmount(product.minStock)}
                   </p>
                 </div>
                 <span className="status-pill warning">Bajo</span>
@@ -479,7 +498,7 @@ function DashboardView({
                   <strong>{purchase.item}</strong>
                   <p>
                     Cantidad {purchase.quantity}
-                    {purchase.place ? ` · ${purchase.place}` : ""}
+                    {purchase.place ? ` - ${purchase.place}` : ""}
                   </p>
                 </div>
                 {purchase.price ? <strong>{formatCurrency(purchase.price)}</strong> : <span className="status-pill">Sin precio</span>}
@@ -494,7 +513,7 @@ function DashboardView({
   );
 }
 
-function ProductsStockView({ products, stockUnits, lowStockProducts, onAdd, onEdit, onDelete, onStockChange }) {
+function ProductsStockView({ products, stockUnits, lowStockProducts, onAdd, onEdit, onDelete, onStockChange, onStockSet }) {
   const [formValues, setFormValues] = useState(blankProduct);
 
   const submitProduct = (event) => {
@@ -507,7 +526,7 @@ function ProductsStockView({ products, stockUnits, lowStockProducts, onAdd, onEd
     <section className="view-stack">
       <div className="stats-grid compact-stats">
         <StatCard label="Productos cargados" value={products.length} detail="En tu inventario" icon="box" />
-        <StatCard label="Unidades totales" value={stockUnits} detail="Stock disponible" icon="layers" />
+        <StatCard label="Unidades totales" value={formatAmount(stockUnits)} detail="Stock disponible" icon="layers" />
         <StatCard label="Stock bajo" value={lowStockProducts.length} detail="Necesitan atencion" icon="spark" />
       </div>
 
@@ -525,6 +544,7 @@ function ProductsStockView({ products, stockUnits, lowStockProducts, onAdd, onEd
           <input
             type="number"
             min="0"
+            step="0.01"
             value={formValues.stock}
             onChange={(event) => setFormValues({ ...formValues, stock: event.target.value })}
           />
@@ -534,6 +554,7 @@ function ProductsStockView({ products, stockUnits, lowStockProducts, onAdd, onEd
           <input
             type="number"
             min="0"
+            step="0.01"
             value={formValues.minStock}
             onChange={(event) => setFormValues({ ...formValues, minStock: event.target.value })}
           />
@@ -545,6 +566,14 @@ function ProductsStockView({ products, stockUnits, lowStockProducts, onAdd, onEd
             min="0"
             value={formValues.price}
             onChange={(event) => setFormValues({ ...formValues, price: event.target.value })}
+            placeholder="Opcional"
+          />
+        </label>
+        <label>
+          Proveedor
+          <input
+            value={formValues.supplier}
+            onChange={(event) => setFormValues({ ...formValues, supplier: event.target.value })}
             placeholder="Opcional"
           />
         </label>
@@ -577,7 +606,15 @@ function ProductsStockView({ products, stockUnits, lowStockProducts, onAdd, onEd
                     <button className="icon-button" onClick={() => onStockChange(product.id, -1)} aria-label={`Restar stock de ${product.name}`}>
                       <Icon name="minus" />
                     </button>
-                    <strong>{product.stock}</strong>
+                    <input
+                      className="stock-input"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={product.stock}
+                      onChange={(event) => onStockSet(product.id, event.target.value)}
+                      aria-label={`Stock de ${product.name}`}
+                    />
                     <button className="icon-button" onClick={() => onStockChange(product.id, 1)} aria-label={`Sumar stock de ${product.name}`}>
                       <Icon name="plus" />
                     </button>
@@ -585,7 +622,7 @@ function ProductsStockView({ products, stockUnits, lowStockProducts, onAdd, onEd
                 </td>
                 <td>
                   <span className={`status-pill ${Number(product.stock) <= Number(product.minStock) ? "warning" : "ok"}`}>
-                    {product.minStock}
+                    {formatAmount(product.minStock)}
                   </span>
                 </td>
                 <td>{product.price ? formatCurrency(product.price) : "Sin precio"}</td>
@@ -609,7 +646,7 @@ function ProductsStockView({ products, stockUnits, lowStockProducts, onAdd, onEd
   );
 }
 
-function PurchasesView({ purchases, onAdd, onToggle, onDelete }) {
+function PurchasesView({ purchases, onAdd, onToggle, onDelete, onDeleteDone }) {
   const [formValues, setFormValues] = useState(blankPurchase);
   const pending = purchases.filter((purchase) => !purchase.done);
   const done = purchases.filter((purchase) => purchase.done);
@@ -668,6 +705,11 @@ function PurchasesView({ purchases, onAdd, onToggle, onDelete }) {
       </Card>
 
       <Card title="Comprado" actionLabel={`${done.length} realizados`}>
+        <div className="card-toolbar">
+          <button className="ghost-button danger" onClick={onDeleteDone} disabled={!done.length}>
+            Eliminar comprados
+          </button>
+        </div>
         <PurchaseList items={done} onToggle={onToggle} onDelete={onDelete} />
       </Card>
     </section>
@@ -689,7 +731,7 @@ function PurchaseList({ items, onToggle, onDelete }) {
               <strong>{purchase.item}</strong>
               <p>
                 Cantidad {purchase.quantity}
-                {purchase.place ? ` · ${purchase.place}` : ""}
+                {purchase.place ? ` - ${purchase.place}` : ""}
               </p>
             </div>
           </label>
@@ -782,14 +824,14 @@ function TasksView({ tasks, completedTasks, onCreate, onToggle, onDeleteComplete
   );
 }
 
-function SettingsView({ settings, profile, onSave }) {
+function SettingsView({ settings, profile, onSave, onProfileChange }) {
   return (
     <section className="view-grid">
       <Card title="Preferencias" actionLabel="Basico">
         <div className="settings-stack">
           <label>
             Nombre del emprendimiento
-            <input value={profile.studioName} readOnly />
+            <input value={profile.studioName} onChange={(event) => onProfileChange("studioName", event.target.value)} />
           </label>
           <label>
             Moneda
@@ -817,9 +859,9 @@ function ProductForm({ initialValues, onSubmit, onCancel }) {
       fields={[
         { name: "name", label: "Nombre" },
         { name: "category", label: "Categoria" },
-        { name: "stock", label: "Stock", type: "number" },
-        { name: "minStock", label: "Stock minimo", type: "number" },
-        { name: "price", label: "Precio", type: "number" },
+        { name: "stock", label: "Stock", type: "number", step: "0.01" },
+        { name: "minStock", label: "Stock minimo", type: "number", step: "0.01" },
+        { name: "price", label: "Precio", type: "number", step: "1" },
         { name: "unit", label: "Unidad" },
         { name: "supplier", label: "Proveedor" },
         { name: "notes", label: "Notas", textarea: true, fullWidth: true },
@@ -899,6 +941,7 @@ function GenericForm({ fields, values, onChange, onSubmit, onCancel }) {
           ) : (
             <input
               type={field.type || "text"}
+              step={field.step}
               value={values[field.name] ?? ""}
               onChange={(event) => handleValueChange(field.name, event.target.value)}
             />
@@ -985,7 +1028,7 @@ function TaskList({ items, onToggle }) {
           <div>
             <strong>{task.title}</strong>
             <p>
-              {task.priority} · {formatDate(task.dueDate)}
+              {task.priority} - {formatDate(task.dueDate)}
             </p>
           </div>
         </label>
@@ -1057,6 +1100,12 @@ function normalizeProduct(product) {
 
 function sumBy(items, key) {
   return items.reduce((total, item) => total + Number(item[key] || 0), 0);
+}
+
+function formatAmount(value) {
+  return new Intl.NumberFormat("es-AR", {
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
 }
 
 function formatCurrency(value) {
