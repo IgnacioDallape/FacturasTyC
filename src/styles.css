@@ -29,10 +29,7 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(211, 201, 180, 0.68), transparent 28%),
-    radial-gradient(circle at 85% 15%, rgba(228, 222, 206, 0.8), transparent 24%),
-    linear-gradient(180deg, #faf8f2 0%, #f6f4ee 52%, #f2eee4 100%);
+  background: linear-gradient(180deg, #faf8f2 0%, #f6f4ee 52%, #f2eee4 100%);
   color: var(--text);
   font-family: "Manrope", sans-serif;
 }
@@ -77,10 +74,8 @@ button {
 .sidebar-footer,
 .card,
 .stat-card,
-.hero-card,
+.summary-band,
 .table-card,
-.login-card,
-.login-visual,
 .modal-card {
   background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.55);
@@ -133,9 +128,7 @@ button {
 
 .brand-card h1,
 .topbar h2,
-.hero-card h3,
-.login-visual h1,
-.login-card h2 {
+.summary-band h3 {
   margin: 0;
   font-family: "Cormorant Garamond", serif;
   font-weight: 600;
@@ -265,7 +258,8 @@ button {
 }
 
 .view-grid > .stats-grid,
-.view-grid > .hero-card,
+.view-grid > .summary-band,
+.view-grid > .section-toolbar,
 .view-grid > .table-card,
 .view-stack > .table-card {
   grid-column: 1 / -1;
@@ -300,9 +294,7 @@ button {
 .inventory-item p,
 .weekly-item span,
 .note-card p,
-.task-row p,
-.login-card p,
-.login-visual p {
+.task-row p {
   margin: 0;
   color: var(--text-soft);
 }
@@ -313,7 +305,7 @@ button {
   font-size: 1.35rem;
 }
 
-.hero-card {
+.summary-band {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
@@ -321,12 +313,12 @@ button {
   border-radius: var(--radius-xl);
 }
 
-.hero-card h3 {
+.summary-band h3 {
   margin-top: 0.7rem;
   font-size: clamp(2rem, 4vw, 3rem);
 }
 
-.hero-card p {
+.summary-band p {
   max-width: 700px;
   margin-top: 0.85rem;
   color: var(--text-soft);
@@ -354,6 +346,11 @@ button {
 .table-card {
   padding: 1.3rem;
   border-radius: var(--radius-xl);
+}
+
+.card {
+  display: grid;
+  gap: 1rem;
 }
 
 .card-header,
@@ -499,6 +496,15 @@ button {
   transform: translateY(-1px);
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+button:disabled:hover {
+  transform: none;
+}
+
 .table-card {
   overflow: hidden;
 }
@@ -532,6 +538,68 @@ td span {
   display: flex;
   gap: 0.55rem;
   justify-content: flex-end;
+}
+
+.quick-add-form {
+  display: grid;
+  grid-template-columns: 1.4fr 0.7fr 0.7fr 0.9fr auto;
+  gap: 0.9rem;
+  align-items: end;
+  padding: 1rem;
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(28px);
+}
+
+.quick-add-form.purchases-form {
+  grid-template-columns: 1.4fr 0.65fr 0.8fr 1fr auto;
+}
+
+.quick-add-form label {
+  display: grid;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.compact-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.stock-stepper {
+  display: inline-grid;
+  grid-template-columns: 40px minmax(34px, auto) 40px;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.stock-stepper strong {
+  text-align: center;
+}
+
+.section-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.check-line {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.check-line input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--gold);
+}
+
+.list-row.is-muted {
+  opacity: 0.68;
 }
 
 .inventory-progress,
@@ -648,8 +716,7 @@ td span {
 }
 
 .form-grid label,
-.settings-stack label,
-.login-card label {
+.settings-stack label {
   display: grid;
   gap: 0.5rem;
   color: var(--text);
@@ -727,74 +794,6 @@ textarea:focus {
   border-radius: calc(var(--radius-xl) + 4px);
 }
 
-.login-screen {
-  display: grid;
-  grid-template-columns: 1.2fr 0.9fr;
-  gap: 1.2rem;
-  min-height: 100vh;
-  padding: 1.4rem;
-}
-
-.login-visual,
-.login-card {
-  position: relative;
-  overflow: hidden;
-  border-radius: 36px;
-}
-
-.login-visual {
-  padding: clamp(2rem, 6vw, 4rem);
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  min-height: 420px;
-}
-
-.login-visual h1 {
-  font-size: clamp(3rem, 7vw, 5.6rem);
-  max-width: 700px;
-}
-
-.login-visual p {
-  margin-top: 1rem;
-  max-width: 560px;
-  font-size: 1.05rem;
-}
-
-.soft-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(10px);
-}
-
-.orb-one {
-  top: -50px;
-  right: 15%;
-  width: 220px;
-  height: 220px;
-  background: rgba(179, 146, 84, 0.18);
-}
-
-.orb-two {
-  bottom: 10%;
-  right: 6%;
-  width: 180px;
-  height: 180px;
-  background: rgba(211, 201, 180, 0.6);
-}
-
-.login-card {
-  align-self: center;
-  padding: 2rem;
-  display: grid;
-  gap: 1rem;
-  max-width: 480px;
-}
-
-.login-card h2 {
-  font-size: 2.4rem;
-}
-
 .badge {
   width: fit-content;
 }
@@ -858,7 +857,7 @@ textarea:focus {
     grid-column: 1 / -1;
   }
 
-  .hero-card {
+  .summary-band {
     flex-direction: column;
   }
 
@@ -868,21 +867,14 @@ textarea:focus {
 }
 
 @media (max-width: 760px) {
-  .content,
-  .login-screen {
+  .content {
     padding: 1rem;
   }
 
-  .login-screen {
-    grid-template-columns: 1fr;
-  }
-
-  .login-card {
-    max-width: none;
-  }
-
   .stats-grid,
-  .form-grid {
+  .form-grid,
+  .quick-add-form,
+  .quick-add-form.purchases-form {
     grid-template-columns: 1fr;
   }
 
