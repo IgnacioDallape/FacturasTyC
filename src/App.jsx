@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { isSupabaseConfigured, loadRemoteState, saveRemoteState } from "./lib/supabase";
 
-const STORAGE_KEY = "nutri-atelier-state-v2";
+const STORAGE_KEY = "nutri-atelier-state-v3";
 
 const navigation = [
   { id: "dashboard", label: "Dashboard", icon: "home" },
@@ -14,80 +15,16 @@ const navigation = [
 
 const initialState = {
   profile: {
-    studioName: "Nutri Atelier",
-    owner: "Valentina Rossi",
-    focus: "Nutricion consciente y productos funcionales",
+    studioName: "Mi emprendimiento",
   },
-  products: [
-    {
-      id: "p1",
-      name: "Granola premium",
-      category: "Despensa saludable",
-      price: 8900,
-      stock: 14,
-      minStock: 10,
-      unit: "packs",
-      supplier: "Natural Fields",
-      notes: "Blend con frutos secos y semillas.",
-    },
-    {
-      id: "p2",
-      name: "Mix proteico cacao",
-      category: "Suplementos",
-      price: 22000,
-      stock: 6,
-      minStock: 8,
-      unit: "frascos",
-      supplier: "Bio Source",
-      notes: "Producto con demanda alta.",
-    },
-    {
-      id: "p3",
-      name: "Harina de almendras",
-      category: "Insumos",
-      price: 12500,
-      stock: 18,
-      minStock: 12,
-      unit: "kg",
-      supplier: "Alma Organica",
-      notes: "Base para recetas low carb.",
-    },
-    {
-      id: "p4",
-      name: "Kombucha citrus",
-      category: "Bebidas",
-      price: 5800,
-      stock: 9,
-      minStock: 9,
-      unit: "botellas",
-      supplier: "Fermenta Lab",
-      notes: "Ideal para combos semanales.",
-    },
-  ],
-  purchases: [
-    { id: "buy1", item: "Proteina vegetal vainilla", quantity: 2, place: "Bio Source", price: 46000, done: false },
-    { id: "buy2", item: "Etiquetas kraft", quantity: 100, place: "Casa Grafica", price: 26000, done: true },
-  ],
-  costs: [
-    { id: "c1", name: "Alquiler del espacio", type: "fixed", amount: 180000, date: "2026-05-01" },
-    { id: "c2", name: "Internet y celular", type: "fixed", amount: 42000, date: "2026-05-02" },
-    { id: "c3", name: "Compra de semillas", type: "variable", amount: 84000, date: "2026-05-03" },
-    { id: "c4", name: "Envases de vidrio", type: "variable", amount: 47000, date: "2026-05-08" },
-  ],
+  products: [],
+  purchases: [],
+  costs: [],
   finances: {
-    cash: 240000,
-    incomes: [
-      { id: "i1", month: "2026-03", amount: 320000, note: "Ventas marzo" },
-      { id: "i2", month: "2026-04", amount: 410000, note: "Ventas abril" },
-      { id: "i3", month: "2026-05", amount: 380000, note: "Ventas mayo" },
-    ],
+    cash: 0,
+    incomes: [],
   },
-  tasks: [
-    { id: "t1", title: "Revisar stock de suplementos", priority: "Alta", dueDate: "2026-05-17", done: false, view: "Hoy" },
-    { id: "t2", title: "Actualizar precios del invierno", priority: "Media", dueDate: "2026-05-19", done: false, view: "Semana" },
-    { id: "t3", title: "Preparar pedidos de suscripcion", priority: "Alta", dueDate: "2026-05-18", done: true, view: "Hoy" },
-    { id: "t4", title: "Comprar insumos secos", priority: "Baja", dueDate: "2026-05-21", done: false, view: "Semana" },
-  ],
+  tasks: [],
   settings: {
     currency: "ARS",
     lowStockAlerts: true,
@@ -137,7 +74,7 @@ const blankIncome = {
 const chartColors = ["#B39254", "#8CA88E", "#C98462", "#D3C9B4", "#7E6C54", "#D9A7A0"];
 
 function App() {
-  const [appState, setAppState] = usePersistedState(STORAGE_KEY, initialState);
+  const [appState, setAppState, storageStatus] = useDatabaseState(initialState);
   const [activeSection, setActiveSection] = useState("dashboard");
   const [menuOpen, setMenuOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -162,19 +99,12 @@ function App() {
   );
 
   const completedTasks = useMemo(() => tasks.filter((task) => task.done), [tasks]);
-  const openTasks = useMemo(() => tasks.filter((task) => !task.done), [tasks]);
-
   const fixedCosts = useMemo(() => costs.filter((cost) => cost.type === "fixed"), [costs]);
   const variableCosts = useMemo(() => costs.filter((cost) => cost.type !== "fixed"), [costs]);
   const fixedTotal = useMemo(() => sumBy(fixedCosts, "amount"), [fixedCosts]);
   const variableTotal = useMemo(() => sumBy(variableCosts, "amount"), [variableCosts]);
-  const monthlyCosts = fixedTotal + variableTotal;
   const monthlyIncome = useMemo(() => sumBy(incomes, "amount"), [incomes]);
   const stockUnits = useMemo(() => products.reduce((total, product) => total + Number(product.stock), 0), [products]);
-  const stockValue = useMemo(
-    () => products.reduce((total, product) => total + Number(product.price || 0) * Number(product.stock || 0), 0),
-    [products],
-  );
 
   const updateState = (key, value) => {
     setAppState((current) => ({ ...current, [key]: value }));
@@ -351,7 +281,7 @@ function App() {
         </nav>
 
         <div className="sidebar-footer">
-          <span className="badge muted">Pesos argentinos</span>
+          <span className="badge muted">{storageStatus.label}</span>
         </div>
       </aside>
 
@@ -367,9 +297,6 @@ function App() {
             products={products}
             lowStockProducts={lowStockProducts}
             pendingPurchases={pendingPurchases}
-            openTasks={openTasks}
-            monthlyCosts={monthlyCosts}
-            stockValue={stockValue}
             fixedCosts={fixedCosts}
             variableCosts={variableCosts}
             fixedTotal={fixedTotal}
@@ -509,9 +436,6 @@ function DashboardView({
   products,
   lowStockProducts,
   pendingPurchases,
-  openTasks,
-  monthlyCosts,
-  stockValue,
   fixedCosts,
   variableCosts,
   fixedTotal,
@@ -1276,17 +1200,85 @@ function Icon({ name }) {
   );
 }
 
-function usePersistedState(key, defaultValue) {
-  const [state, setState] = useState(() => {
-    const storedValue = window.localStorage.getItem(key);
-    return storedValue ? { ...defaultValue, ...JSON.parse(storedValue) } : defaultValue;
+function useDatabaseState(defaultValue) {
+  const [state, setState] = useState(defaultValue);
+  const [status, setStatus] = useState({
+    label: isSupabaseConfigured ? "Conectando Supabase" : "Modo local",
+    type: isSupabaseConfigured ? "loading" : "local",
   });
+  const [ready, setReady] = useState(!isSupabaseConfigured);
 
   useEffect(() => {
-    window.localStorage.setItem(key, JSON.stringify(state));
-  }, [key, state]);
+    let isMounted = true;
 
-  return [state, setState];
+    async function loadState() {
+      if (!isSupabaseConfigured) {
+        const storedValue = window.localStorage.getItem(STORAGE_KEY);
+        if (storedValue && isMounted) {
+          setState(mergeAppState(defaultValue, JSON.parse(storedValue)));
+        }
+        return;
+      }
+
+      try {
+        const remoteState = await loadRemoteState();
+        const nextState = mergeAppState(defaultValue, remoteState || {});
+
+        if (!remoteState) {
+          await saveRemoteState(nextState);
+        }
+
+        if (isMounted) {
+          setState(nextState);
+          setStatus({ label: "Supabase conectado", type: "remote" });
+          setReady(true);
+        }
+      } catch (error) {
+        console.error(error);
+        if (isMounted) {
+          setStatus({ label: "Supabase sin configurar", type: "error" });
+          setReady(true);
+        }
+      }
+    }
+
+    loadState();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [defaultValue]);
+
+  const setAndPersistState = (updater) => {
+    setState((current) => {
+      const nextState = typeof updater === "function" ? updater(current) : updater;
+
+      if (isSupabaseConfigured) {
+        saveRemoteState(nextState)
+          .then(() => setStatus({ label: "Supabase conectado", type: "remote" }))
+          .catch((error) => {
+            console.error(error);
+            setStatus({ label: "Error al guardar", type: "error" });
+          });
+      } else {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
+      }
+
+      return nextState;
+    });
+  };
+
+  return [state, ready ? setAndPersistState : setState, status];
+}
+
+function mergeAppState(defaultValue, storedValue) {
+  return {
+    ...defaultValue,
+    ...storedValue,
+    profile: { ...defaultValue.profile, ...storedValue.profile },
+    finances: { ...defaultValue.finances, ...storedValue.finances },
+    settings: { ...defaultValue.settings, ...storedValue.settings },
+  };
 }
 
 function normalizeProduct(product) {
