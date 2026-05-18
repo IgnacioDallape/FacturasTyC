@@ -22,3 +22,7 @@ npm run dev
 ```
 
 Si las variables no estan configuradas, la app funciona en modo local. Cuando Supabase esta configurado, todos los datos se guardan en la tabla `app_state`.
+
+## PWA
+
+La app incluye manifest, service worker e iconos para instalarse como PWA desde el navegador. En produccion debe servirse por HTTPS para que la instalacion y el modo offline funcionen correctamente.
