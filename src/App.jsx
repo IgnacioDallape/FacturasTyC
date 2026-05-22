@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { isSupabaseConfigured, loadRemoteState, saveRemoteState } from "./lib/supabase";
 
 const STORAGE_KEY = "remitos-facturas-state-v1";
+const ARS_PER_USD = 1100;
 
 const today = new Date();
 const currentMonth = today.toISOString().slice(0, 7);
@@ -303,6 +304,8 @@ function DashboardView({
   summary,
   donutItems,
 }) {
+  const pendingClients = summary.filter((client) => client.totalDue > 0);
+
   return (
     <main className="layout-stack">
       <section className="metrics-grid">
@@ -322,8 +325,8 @@ function DashboardView({
         <MetricCard label="Viajes no facturados" value={String(pendingTrips.length)} detail="Listos para revisar" tone="slate" />
       </section>
 
-      <section className="dashboard-grid">
-        <article className="panel panel-hero">
+      <section className="dashboard-receivables">
+        <article className="panel receivables-panel">
           <div className="panel-header">
             <div>
               <p className="eyebrow">Resumen principal</p>
@@ -332,64 +335,52 @@ function DashboardView({
             <span className="badge">Dona por cliente</span>
           </div>
 
-          <div className="donut-layout">
-            <DonutChart items={donutItems} centerLabel="Sin cobrar" centerValue={formatCurrency(totalUnpaid)} />
+          <div className="receivables-body">
+            <div className="receivables-donut">
+              <DonutChart
+                items={donutItems}
+                centerLabel="Total sin cobrar"
+                centerValue={formatUsdFromArs(totalUnpaid)}
+                centerDetail={`Dolar ${formatCurrency(ARS_PER_USD)}`}
+              />
+            </div>
 
-            <div className="legend-card">
-              <h3>Detalle por cliente</h3>
-              <div className="legend-list">
-                {donutItems.length ? (
-                  donutItems.map((item, index) => (
-                    <div className="legend-row" key={item.label}>
-                      <span className="legend-dot" style={{ background: chartColors[index % chartColors.length] }} />
-                      <div>
-                        <strong>{item.label}</strong>
-                        <p>{item.detail}</p>
+            <div className="client-breakdown">
+              <div className="breakdown-title">
+                <h3>Cliente por cliente</h3>
+                <p>Saldo pendiente convertido a USD.</p>
+              </div>
+
+              {pendingClients.length ? (
+                <div className="breakdown-table">
+                  <div className="breakdown-head">
+                    <span>Cliente</span>
+                    <span>Pendientes</span>
+                    <span>Participacion</span>
+                    <span>Adeudado</span>
+                    <span>US$</span>
+                  </div>
+
+                  {pendingClients.map((client, index) => (
+                    <div className="breakdown-row" key={client.id}>
+                      <div className="breakdown-client">
+                        <span className="legend-dot" style={{ background: chartColors[index % chartColors.length] }} />
+                        <strong>{client.name}</strong>
                       </div>
-                      <strong>{formatCurrency(item.value)}</strong>
+                      <span>{client.pendingCount}</span>
+                      <span>{formatShare(client.totalDue, totalUnpaid)}</span>
+                      <strong>{formatCurrency(client.totalDue)}</strong>
+                      <strong>{formatUsdFromArs(client.totalDue)}</strong>
                     </div>
-                  ))
-                ) : (
-                  <EmptyState
-                    title="Sin deuda pendiente"
-                    message="Todas las facturas cargadas figuran como cobradas."
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <article className="panel">
-          <div className="panel-header">
-            <div>
-              <p className="eyebrow">Clientes</p>
-              <h2>Detalle resumido</h2>
-            </div>
-            <span className="badge">{summary.length} clientes</span>
-          </div>
-
-          <div className="summary-table">
-            <div className="summary-head">
-              <span>Cliente</span>
-              <span>Adeudado</span>
-              <span>Facturado mes</span>
-              <span>Pendientes</span>
-            </div>
-
-            {summary.map((client) => (
-              <div className="summary-row" key={client.id}>
-                <div>
-                  <strong>{client.name}</strong>
-                  <p>{client.totalInvoices} facturas cargadas</p>
+                  ))}
                 </div>
-                <strong>{formatCurrency(client.totalDue)}</strong>
-                <strong>{formatCurrency(client.monthTotal)}</strong>
-                <span className={`status-pill ${client.pendingCount ? "warning" : "ok"}`}>
-                  {client.pendingCount} pendientes
-                </span>
-              </div>
-            ))}
+              ) : (
+                <EmptyState
+                  title="Sin deuda pendiente"
+                  message="Todas las facturas cargadas figuran como cobradas."
+                />
+              )}
+            </div>
           </div>
         </article>
       </section>
@@ -790,7 +781,7 @@ function TripForm({ clients, onSubmit }) {
   );
 }
 
-function DonutChart({ items, centerLabel, centerValue }) {
+function DonutChart({ items, centerLabel, centerValue, centerDetail }) {
   const total = items.reduce((sum, item) => sum + Number(item.value || 0), 0);
 
   return (
@@ -799,7 +790,7 @@ function DonutChart({ items, centerLabel, centerValue }) {
         <div className="donut-center">
           <span>{centerLabel}</span>
           <strong>{centerValue}</strong>
-          <small>{total ? "100% del pendiente" : "Sin movimientos"}</small>
+          <small>{total ? centerDetail : "Sin movimientos"}</small>
         </div>
       </div>
     </div>
@@ -1004,6 +995,23 @@ function formatCurrency(value) {
     currency: "ARS",
     maximumFractionDigits: 0,
   }).format(Number(value || 0));
+}
+
+function formatUsdFromArs(value) {
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(Math.round(Number(value || 0) / ARS_PER_USD));
+}
+
+function formatShare(value, total) {
+  if (!total) return "0%";
+
+  return new Intl.NumberFormat("es-AR", {
+    style: "percent",
+    maximumFractionDigits: 1,
+  }).format(Number(value || 0) / total);
 }
 
 function formatMonth(value) {
