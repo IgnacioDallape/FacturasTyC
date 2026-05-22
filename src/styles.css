@@ -98,7 +98,7 @@ button {
 .status-pill,
 .metric-card span,
 .stat-box span {
-  letter-spacing: 0.1em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -119,7 +119,7 @@ h1,
 h2 {
   font-family: "Fraunces", serif;
   font-weight: 600;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 }
 
 h1 {
@@ -411,7 +411,7 @@ h2 {
   padding: 0 8px;
   font-size: 0.8rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -421,14 +421,95 @@ h2 {
   font-size: 0.88rem;
 }
 
-.clients-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
+.clients-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
-.client-panel {
-  align-content: start;
+.client-create-form {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+  gap: 12px;
+  width: min(760px, 100%);
+  align-items: end;
+}
+
+.client-create-form label {
+  display: grid;
+  gap: 10px;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.client-list {
+  display: grid;
+  gap: 16px;
+}
+
+.client-disclosure {
+  display: block;
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.client-summary {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.3fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto 26px;
+  gap: 18px;
+  align-items: center;
+  min-height: 108px;
+  padding: 24px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.client-summary::-webkit-details-marker {
+  display: none;
+}
+
+.client-disclosure[open] .client-summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.client-name h2 {
+  font-size: 2rem;
+}
+
+.summary-metric {
+  display: grid;
+  gap: 6px;
+}
+
+.summary-metric span {
+  color: var(--text-soft);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.summary-metric strong {
+  font-size: 1.2rem;
+}
+
+.disclosure-arrow {
+  width: 14px;
+  height: 14px;
+  border-right: 2px solid var(--text-soft);
+  border-bottom: 2px solid var(--text-soft);
+  transform: rotate(45deg) translateY(-3px);
+  transition: transform 180ms ease;
+}
+
+.client-disclosure[open] .disclosure-arrow {
+  transform: rotate(225deg) translate(-2px, -2px);
+}
+
+.client-details {
+  display: grid;
+  gap: 18px;
+  padding: 20px 24px 24px;
 }
 
 .mini-stats {
@@ -519,6 +600,14 @@ h2 {
   max-width: 340px;
 }
 
+.form-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #9b5743;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
 .primary-button,
 .ghost-button {
   min-height: 48px;
@@ -571,7 +660,6 @@ textarea:focus {
 
 @media (max-width: 1220px) {
   .metrics-grid,
-  .clients-grid,
   .dashboard-grid,
   .donut-layout,
   .toolbar-card {
@@ -580,6 +668,8 @@ textarea:focus {
 
   .entry-form,
   .trip-form,
+  .client-create-form,
+  .client-summary,
   .invoice-row,
   .trip-row,
   .summary-head,
@@ -601,6 +691,14 @@ textarea:focus {
 
   .topbar-side {
     justify-items: start;
+  }
+
+  .client-summary {
+    min-height: auto;
+  }
+
+  .disclosure-arrow {
+    justify-self: end;
   }
 }
 
@@ -628,5 +726,19 @@ textarea:focus {
   .inline-form,
   .mini-stats {
     grid-template-columns: 1fr;
+  }
+
+  .clients-actions {
+    justify-content: stretch;
+  }
+
+  .clients-actions > .primary-button {
+    width: 100%;
+  }
+
+  .client-summary,
+  .client-details {
+    padding-left: 18px;
+    padding-right: 18px;
   }
 }

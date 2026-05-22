@@ -90,8 +90,7 @@ const blankTrip = {
 function App() {
   const [appState, setAppState, storageStatus] = useDatabaseState(initialState);
   const [activeView, setActiveView] = useState("dashboard");
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
-  const [clientDraft, setClientDraft] = useState("");
+  const selectedMonth = currentMonth;
 
   const clients = appState.clients || [];
   const invoices = appState.invoices || [];
@@ -133,14 +132,14 @@ function App() {
     [dashboardSummary],
   );
 
-  const totalPendingInvoices = useMemo(
-    () => invoices.filter((invoice) => !invoice.paid).length,
-    [invoices],
-  );
-
   const unbilledPendingTrips = useMemo(
     () => unbilledTrips.filter((trip) => !trip.billed),
     [unbilledTrips],
+  );
+
+  const unbilledTripsAmount = useMemo(
+    () => sumAmounts(unbilledPendingTrips),
+    [unbilledPendingTrips],
   );
 
   const donutItems = useMemo(
@@ -155,32 +154,38 @@ function App() {
     [dashboardSummary],
   );
 
-  const addClient = () => {
-    const trimmedName = clientDraft.trim();
-    if (!trimmedName) return;
+  const addClient = (name) => {
+    const trimmedName = name.trim();
+    const repeatedClient = clients.some((client) => client.name.toLowerCase() === trimmedName.toLowerCase());
+    if (!trimmedName || repeatedClient) return null;
+
+    const clientId = buildClientId(trimmedName, clients);
 
     setAppState((current) => ({
       ...current,
       clients: [
         ...current.clients,
         {
-          id: slugify(trimmedName),
+          id: clientId,
           name: trimmedName,
           isMisc: false,
         },
       ],
     }));
-    setClientDraft("");
+
+    return clientId;
   };
 
   const addInvoice = (clientId, values) => {
     const normalized = normalizeInvoice(values);
-    if (!normalized.invoiceNumber || !normalized.amount) return;
+    if (!normalized.invoiceNumber || !normalized.amount) return false;
 
     setAppState((current) => ({
       ...current,
-      invoices: [{ id: crypto.randomUUID(), clientId, ...normalized }, ...current.invoices],
+      invoices: [{ id: createRecordId("invoice"), clientId, ...normalized }, ...current.invoices],
     }));
+
+    return true;
   };
 
   const toggleInvoicePaid = (invoiceId) => {
@@ -201,12 +206,14 @@ function App() {
 
   const addTrip = (values) => {
     const normalized = normalizeTrip(values);
-    if (!normalized.route || !normalized.amount) return;
+    if (!normalized.route || !normalized.amount) return false;
 
     setAppState((current) => ({
       ...current,
-      unbilledTrips: [{ id: crypto.randomUUID(), billed: false, ...normalized }, ...current.unbilledTrips],
+      unbilledTrips: [{ id: createRecordId("trip"), billed: false, ...normalized }, ...current.unbilledTrips],
     }));
+
+    return true;
   };
 
   const toggleTripBilled = (tripId) => {
@@ -257,39 +264,12 @@ function App() {
         </div>
       </header>
 
-      <section className="toolbar-card">
-        <div className="toolbar-block">
-          <label htmlFor="month-filter">Mes de analisis</label>
-          <input
-            id="month-filter"
-            type="month"
-            value={selectedMonth}
-            onChange={(event) => setSelectedMonth(event.target.value)}
-          />
-        </div>
-
-        <div className="toolbar-block grow">
-          <label htmlFor="new-client">Agregar cliente</label>
-          <div className="inline-form">
-            <input
-              id="new-client"
-              value={clientDraft}
-              onChange={(event) => setClientDraft(event.target.value)}
-              placeholder="Nuevo cliente"
-            />
-            <button className="primary-button" type="button" onClick={addClient}>
-              Crear cliente
-            </button>
-          </div>
-        </div>
-      </section>
-
       {activeView === "dashboard" ? (
         <DashboardView
           selectedMonth={selectedMonth}
           totalUnpaid={totalUnpaid}
           totalMonthlyBilled={totalMonthlyBilled}
-          totalPendingInvoices={totalPendingInvoices}
+          unbilledTripsAmount={unbilledTripsAmount}
           pendingTrips={unbilledPendingTrips}
           summary={dashboardSummary}
           donutItems={donutItems}
@@ -301,6 +281,7 @@ function App() {
           clientsById={clientsById}
           selectedMonth={selectedMonth}
           unbilledTrips={unbilledTrips}
+          onAddClient={addClient}
           onAddInvoice={addInvoice}
           onToggleInvoicePaid={toggleInvoicePaid}
           onDeleteInvoice={deleteInvoice}
@@ -317,7 +298,7 @@ function DashboardView({
   selectedMonth,
   totalUnpaid,
   totalMonthlyBilled,
-  totalPendingInvoices,
+  unbilledTripsAmount,
   pendingTrips,
   summary,
   donutItems,
@@ -332,7 +313,12 @@ function DashboardView({
           detail={`Periodo ${formatMonth(selectedMonth)}`}
           tone="gold"
         />
-        <MetricCard label="Facturas pendientes" value={String(totalPendingInvoices)} detail="Pendientes de cobro" tone="orange" />
+        <MetricCard
+          label="Monto no facturado"
+          value={formatCurrency(unbilledTripsAmount)}
+          detail="Viajes realizados pendientes"
+          tone="orange"
+        />
         <MetricCard label="Viajes no facturados" value={String(pendingTrips.length)} detail="Listos para revisar" tone="slate" />
       </section>
 
@@ -417,6 +403,7 @@ function ClientsView({
   clientsById,
   selectedMonth,
   unbilledTrips,
+  onAddClient,
   onAddInvoice,
   onToggleInvoicePaid,
   onDeleteInvoice,
@@ -424,9 +411,31 @@ function ClientsView({
   onToggleTripBilled,
   onDeleteTrip,
 }) {
+  const [showClientForm, setShowClientForm] = useState(false);
+  const [expandedClientId, setExpandedClientId] = useState("");
+
+  const createClient = (name) => {
+    const clientId = onAddClient(name);
+    if (!clientId) return false;
+
+    setExpandedClientId(clientId);
+    setShowClientForm(false);
+    return true;
+  };
+
   return (
     <main className="layout-stack">
-      <section className="clients-grid">
+      <section className="clients-actions">
+        {!showClientForm ? (
+          <button className="primary-button" type="button" onClick={() => setShowClientForm(true)}>
+            Agregar cliente
+          </button>
+        ) : (
+          <ClientForm onSubmit={createClient} onCancel={() => setShowClientForm(false)} />
+        )}
+      </section>
+
+      <section className="client-list">
         {clients.map((client) => {
           const clientInvoices = invoices.filter((invoice) => invoice.clientId === client.id);
           const monthlyTotal = sumAmounts(clientInvoices.filter((invoice) => invoice.date?.startsWith(selectedMonth)));
@@ -434,54 +443,65 @@ function ClientsView({
           const pending = clientInvoices.filter((invoice) => !invoice.paid).length;
 
           return (
-            <article className="panel client-panel" key={client.id}>
-              <div className="panel-header">
-                <div>
+            <details className="panel client-disclosure" key={client.id} open={expandedClientId === client.id}>
+              <summary
+                className="client-summary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  setExpandedClientId((current) => (current === client.id ? "" : client.id));
+                }}
+              >
+                <div className="client-name">
                   <p className="eyebrow">Cliente</p>
                   <h2>{client.name}</h2>
                 </div>
+                <SummaryMetric label="Total adeudado" value={formatCurrency(totalDue)} />
+                <SummaryMetric label="Facturado del mes" value={formatCurrency(monthlyTotal)} />
                 <span className={`status-pill ${pending ? "warning" : "ok"}`}>
                   {pending ? `${pending} pendientes` : "Al dia"}
                 </span>
-              </div>
+                <span className="disclosure-arrow" aria-hidden="true" />
+              </summary>
 
-              <div className="mini-stats">
-                <StatBox label="Total adeudado" value={formatCurrency(totalDue)} />
-                <StatBox label="Facturado del mes" value={formatCurrency(monthlyTotal)} />
-              </div>
+              <div className="client-details">
+                <div className="mini-stats">
+                  <StatBox label="Total adeudado" value={formatCurrency(totalDue)} />
+                  <StatBox label="Facturado del mes" value={formatCurrency(monthlyTotal)} />
+                </div>
 
-              <InvoiceForm client={client} onSubmit={(values) => onAddInvoice(client.id, values)} />
+                <InvoiceForm client={client} onSubmit={(values) => onAddInvoice(client.id, values)} />
 
-              <div className="invoice-list">
-                {clientInvoices.length ? (
-                  clientInvoices.map((invoice) => (
-                    <div className={`invoice-row ${invoice.paid ? "is-paid" : ""}`} key={invoice.id}>
-                      <div className="invoice-main">
-                        <strong>{invoice.invoiceNumber}</strong>
-                        <p>
-                          {formatDate(invoice.date)}
-                          {client.isMisc && invoice.customerName ? ` · ${invoice.customerName}` : ""}
-                        </p>
+                <div className="invoice-list">
+                  {clientInvoices.length ? (
+                    clientInvoices.map((invoice) => (
+                      <div className={`invoice-row ${invoice.paid ? "is-paid" : ""}`} key={invoice.id}>
+                        <div className="invoice-main">
+                          <strong>{invoice.invoiceNumber}</strong>
+                          <p>
+                            {formatDate(invoice.date)}
+                            {client.isMisc && invoice.customerName ? ` - ${invoice.customerName}` : ""}
+                          </p>
+                        </div>
+                        <strong>{formatCurrency(invoice.amount)}</strong>
+                        <span className={`status-pill ${invoice.paid ? "ok" : "warning"}`}>
+                          {invoice.paid ? "Pagada" : "Pendiente"}
+                        </span>
+                        <div className="row-actions">
+                          <button className="ghost-button" type="button" onClick={() => onToggleInvoicePaid(invoice.id)}>
+                            {invoice.paid ? "Marcar impaga" : "Marcar pagada"}
+                          </button>
+                          <button className="ghost-button danger" type="button" onClick={() => onDeleteInvoice(invoice.id)}>
+                            Eliminar
+                          </button>
+                        </div>
                       </div>
-                      <strong>{formatCurrency(invoice.amount)}</strong>
-                      <span className={`status-pill ${invoice.paid ? "ok" : "warning"}`}>
-                        {invoice.paid ? "Pagada" : "Pendiente"}
-                      </span>
-                      <div className="row-actions">
-                        <button className="ghost-button" type="button" onClick={() => onToggleInvoicePaid(invoice.id)}>
-                          {invoice.paid ? "Marcar impaga" : "Marcar pagada"}
-                        </button>
-                        <button className="ghost-button danger" type="button" onClick={() => onDeleteInvoice(invoice.id)}>
-                          Eliminar
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <EmptyState title="Sin facturas" message="Carga la primera factura de este cliente." />
-                )}
+                    ))
+                  ) : (
+                    <EmptyState title="Sin facturas" message="Carga la primera factura de este cliente." />
+                  )}
+                </div>
               </div>
-            </article>
+            </details>
           );
         })}
       </section>
@@ -504,8 +524,8 @@ function ClientsView({
                 <div>
                   <strong>{clientsById[trip.clientId]?.name || "Cliente"}</strong>
                   <p>
-                    {trip.route} · {formatDate(trip.date)}
-                    {trip.customerName ? ` · ${trip.customerName}` : ""}
+                    {trip.route} - {formatDate(trip.date)}
+                    {trip.customerName ? ` - ${trip.customerName}` : ""}
                   </p>
                   {trip.note ? <small>{trip.note}</small> : null}
                 </div>
@@ -532,13 +552,62 @@ function ClientsView({
   );
 }
 
-function InvoiceForm({ client, onSubmit }) {
-  const [formValues, setFormValues] = useState(blankInvoice);
+function ClientForm({ onSubmit, onCancel }) {
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    onSubmit(formValues);
+
+    if (!onSubmit(name)) {
+      setError("Escribi un cliente nuevo para agregarlo.");
+      return;
+    }
+
+    setName("");
+    setError("");
+  };
+
+  return (
+    <form className="client-create-form" onSubmit={handleSubmit}>
+      <label htmlFor="new-client">
+        Nuevo cliente
+        <input
+          id="new-client"
+          required
+          value={name}
+          onChange={(event) => {
+            setName(event.target.value);
+            setError("");
+          }}
+          placeholder="Nombre del cliente"
+        />
+      </label>
+      <button className="primary-button" type="submit">
+        Crear cliente
+      </button>
+      <button className="ghost-button" type="button" onClick={onCancel}>
+        Cancelar
+      </button>
+      {error ? <p className="form-error">{error}</p> : null}
+    </form>
+  );
+}
+
+function InvoiceForm({ client, onSubmit }) {
+  const [formValues, setFormValues] = useState(blankInvoice);
+  const [error, setError] = useState("");
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+
+    if (!onSubmit(formValues)) {
+      setError("Completa el numero y el valor de la factura.");
+      return;
+    }
+
     setFormValues(blankInvoice);
+    setError("");
   };
 
   return (
@@ -546,8 +615,12 @@ function InvoiceForm({ client, onSubmit }) {
       <label>
         Nro. factura
         <input
+          required
           value={formValues.invoiceNumber}
-          onChange={(event) => setFormValues({ ...formValues, invoiceNumber: event.target.value })}
+          onChange={(event) => {
+            setFormValues({ ...formValues, invoiceNumber: event.target.value });
+            setError("");
+          }}
           placeholder="0004-00001237"
         />
       </label>
@@ -567,8 +640,12 @@ function InvoiceForm({ client, onSubmit }) {
           type="number"
           min="0"
           step="0.01"
+          required
           value={formValues.amount}
-          onChange={(event) => setFormValues({ ...formValues, amount: event.target.value })}
+          onChange={(event) => {
+            setFormValues({ ...formValues, amount: event.target.value });
+            setError("");
+          }}
           placeholder="250000"
         />
       </label>
@@ -596,6 +673,7 @@ function InvoiceForm({ client, onSubmit }) {
       <button className="primary-button" type="submit">
         Agregar factura
       </button>
+      {error ? <p className="form-error full-span">{error}</p> : null}
     </form>
   );
 }
@@ -605,6 +683,7 @@ function TripForm({ clients, onSubmit }) {
     ...blankTrip,
     clientId: clients[0]?.id || "varios",
   });
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!clients.some((client) => client.id === formValues.clientId) && clients[0]) {
@@ -616,11 +695,17 @@ function TripForm({ clients, onSubmit }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    onSubmit(formValues);
+
+    if (!onSubmit(formValues)) {
+      setError("Completa el trayecto y el valor estimado.");
+      return;
+    }
+
     setFormValues({
       ...blankTrip,
       clientId: clients[0]?.id || "varios",
     });
+    setError("");
   };
 
   return (
@@ -651,8 +736,12 @@ function TripForm({ clients, onSubmit }) {
       <label>
         Trayecto
         <input
+          required
           value={formValues.route}
-          onChange={(event) => setFormValues({ ...formValues, route: event.target.value })}
+          onChange={(event) => {
+            setFormValues({ ...formValues, route: event.target.value });
+            setError("");
+          }}
           placeholder="Origen -> Destino"
         />
       </label>
@@ -663,8 +752,12 @@ function TripForm({ clients, onSubmit }) {
           type="number"
           min="0"
           step="0.01"
+          required
           value={formValues.amount}
-          onChange={(event) => setFormValues({ ...formValues, amount: event.target.value })}
+          onChange={(event) => {
+            setFormValues({ ...formValues, amount: event.target.value });
+            setError("");
+          }}
           placeholder="150000"
         />
       </label>
@@ -692,6 +785,7 @@ function TripForm({ clients, onSubmit }) {
       <button className="primary-button" type="submit">
         Agregar viaje
       </button>
+      {error ? <p className="form-error full-span">{error}</p> : null}
     </form>
   );
 }
@@ -725,6 +819,15 @@ function MetricCard({ label, value, detail, tone }) {
 function StatBox({ label, value }) {
   return (
     <div className="stat-box">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function SummaryMetric({ label, value }) {
+  return (
+    <div className="summary-metric">
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
@@ -816,9 +919,9 @@ function mergeAppState(defaultValue, storedValue) {
     ...defaultValue,
     ...storedValue,
     profile: { ...defaultValue.profile, ...storedValue.profile },
-    clients: storedValue.clients?.length ? storedValue.clients : defaultValue.clients,
-    invoices: storedValue.invoices?.length ? storedValue.invoices : defaultValue.invoices,
-    unbilledTrips: storedValue.unbilledTrips?.length ? storedValue.unbilledTrips : defaultValue.unbilledTrips,
+    clients: Array.isArray(storedValue.clients) ? storedValue.clients : defaultValue.clients,
+    invoices: Array.isArray(storedValue.invoices) ? storedValue.invoices : defaultValue.invoices,
+    unbilledTrips: Array.isArray(storedValue.unbilledTrips) ? storedValue.unbilledTrips : defaultValue.unbilledTrips,
   };
 }
 
@@ -854,6 +957,27 @@ function slugify(value) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+}
+
+function buildClientId(name, clients) {
+  const base = slugify(name) || "cliente";
+  let candidate = base;
+  let suffix = 2;
+
+  while (clients.some((client) => client.id === candidate)) {
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+
+  return candidate;
+}
+
+function createRecordId(prefix) {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `${prefix}-${Date.now()}-${Math.round(Math.random() * 100000)}`;
 }
 
 function buildPieGradient(items) {
