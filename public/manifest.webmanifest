@@ -1,12 +1,12 @@
 {
-  "name": "NutriApp",
-  "short_name": "NutriApp",
-  "description": "Gestion de productos, stock, compras, costos, finanzas y tareas para un emprendimiento de nutricion.",
+  "name": "FacturasTyC",
+  "short_name": "FacturasTyC",
+  "description": "Gestion de facturas por cliente, pendientes de cobro y viajes no facturados.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#F6F4EE",
-  "theme_color": "#B39254",
+  "background_color": "#F3E7C9",
+  "theme_color": "#BEA46D",
   "orientation": "portrait-primary",
   "icons": [
     {

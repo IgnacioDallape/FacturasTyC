@@ -9,7 +9,7 @@ export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
-const APP_STATE_ID = "nutriapp";
+const APP_STATE_ID = "facturastyc";
 
 export async function loadRemoteState() {
   if (!supabase) return null;

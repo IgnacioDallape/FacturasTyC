@@ -1,6 +1,6 @@
-# NutriApp
+# FacturasTyC
 
-App web para gestionar productos, stock, compras, costos, finanzas y tareas de un emprendimiento de nutricion.
+App web para gestionar facturas por cliente, pendientes de cobro y viajes realizados que todavia no fueron facturados.
 
 ## Configurar Supabase
 
