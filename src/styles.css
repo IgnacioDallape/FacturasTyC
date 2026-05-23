@@ -185,7 +185,7 @@ h2 {
 }
 
 .segmented button {
-  min-width: 150px;
+  min-width: 128px;
   min-height: 44px;
   padding: 0.72rem 1.15rem;
   border-radius: 999px;
@@ -663,6 +663,10 @@ h2 {
   background: rgba(241, 226, 195, 0.5);
 }
 
+.trips-panel {
+  align-self: start;
+}
+
 .full-span {
   grid-column: 1 / -2;
 }
@@ -920,13 +924,16 @@ textarea:focus {
 
   .segmented {
     width: 100%;
+    gap: 4px;
     justify-content: stretch;
   }
 
   .segmented button {
     min-width: 0;
     flex: 1 1 0;
-    padding: 0.75rem 0.85rem;
+    min-height: 42px;
+    padding: 0.72rem 0.45rem;
+    font-size: 0.82rem;
   }
 
   .inline-form,

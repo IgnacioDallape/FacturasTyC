@@ -253,6 +253,12 @@ function App() {
           >
             Clientes
           </button>
+          <button
+            className={activeView === "viajes" ? "is-active" : ""}
+            onClick={() => setActiveView("viajes")}
+          >
+            Viajes
+          </button>
         </div>
       </header>
 
@@ -266,17 +272,21 @@ function App() {
           summary={dashboardSummary}
           donutItems={donutItems}
         />
-      ) : (
+      ) : activeView === "clientes" ? (
         <ClientsView
           clients={clients}
           invoices={invoices}
-          clientsById={clientsById}
           selectedMonth={selectedMonth}
-          unbilledTrips={unbilledTrips}
           onAddClient={addClient}
           onAddInvoice={addInvoice}
           onToggleInvoicePaid={toggleInvoicePaid}
           onDeleteInvoice={deleteInvoice}
+        />
+      ) : (
+        <TripsView
+          clients={clients}
+          clientsById={clientsById}
+          unbilledTrips={unbilledTrips}
           onAddTrip={addTrip}
           onToggleTripBilled={toggleTripBilled}
           onDeleteTrip={deleteTrip}
@@ -375,16 +385,11 @@ function DashboardView({
 function ClientsView({
   clients,
   invoices,
-  clientsById,
   selectedMonth,
-  unbilledTrips,
   onAddClient,
   onAddInvoice,
   onToggleInvoicePaid,
   onDeleteInvoice,
-  onAddTrip,
-  onToggleTripBilled,
-  onDeleteTrip,
 }) {
   const [showClientForm, setShowClientForm] = useState(false);
   const [expandedClientId, setExpandedClientId] = useState("");
@@ -508,14 +513,29 @@ function ClientsView({
           );
         })}
       </section>
+    </main>
+  );
+}
 
-      <section className="panel">
+function TripsView({
+  clients,
+  clientsById,
+  unbilledTrips,
+  onAddTrip,
+  onToggleTripBilled,
+  onDeleteTrip,
+}) {
+  const openTrips = unbilledTrips.filter((trip) => !trip.billed);
+
+  return (
+    <main className="layout-stack">
+      <section className="panel trips-panel">
         <div className="panel-header">
           <div>
             <p className="eyebrow">Pendiente de facturar</p>
             <h2>Viajes realizados y no facturados</h2>
           </div>
-          <span className="badge">{unbilledTrips.filter((trip) => !trip.billed).length} abiertos</span>
+          <span className="badge">{openTrips.length} abiertos</span>
         </div>
 
         <TripForm clients={clients} onSubmit={onAddTrip} />
