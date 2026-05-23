@@ -3,6 +3,7 @@ import { isSupabaseConfigured, loadRemoteState, saveRemoteState } from "./lib/su
 
 const STORAGE_KEY = "remitos-facturas-state-v1";
 const ARS_PER_USD = 1100;
+const IVA_RATE = 0.21;
 
 const today = new Date();
 const currentMonth = today.toISOString().slice(0, 7);
@@ -116,6 +117,7 @@ function App() {
           ...client,
           totalDue: sumAmounts(unpaidInvoices),
           monthTotal: sumAmounts(monthlyInvoices),
+          monthVat: sumAmounts(monthlyInvoices) * IVA_RATE,
           pendingCount: unpaidInvoices.length,
           totalInvoices: clientInvoices.length,
         };
@@ -141,6 +143,11 @@ function App() {
   const unbilledTripsAmount = useMemo(
     () => sumAmounts(unbilledPendingTrips),
     [unbilledPendingTrips],
+  );
+
+  const totalMonthlyVat = useMemo(
+    () => dashboardSummary.reduce((sum, client) => sum + client.monthVat, 0),
+    [dashboardSummary],
   );
 
   const donutItems = useMemo(
@@ -267,6 +274,7 @@ function App() {
           selectedMonth={selectedMonth}
           totalUnpaid={totalUnpaid}
           totalMonthlyBilled={totalMonthlyBilled}
+          totalMonthlyVat={totalMonthlyVat}
           unbilledTripsAmount={unbilledTripsAmount}
           pendingTrips={unbilledPendingTrips}
           summary={dashboardSummary}
@@ -299,6 +307,7 @@ function DashboardView({
   selectedMonth,
   totalUnpaid,
   totalMonthlyBilled,
+  totalMonthlyVat,
   unbilledTripsAmount,
   pendingTrips,
   summary,
@@ -315,6 +324,12 @@ function DashboardView({
           value={formatCurrency(totalMonthlyBilled)}
           detail={`Periodo ${formatMonth(selectedMonth)}`}
           tone="gold"
+        />
+        <MetricCard
+          label="IVA estimado"
+          value={formatCurrency(totalMonthlyVat)}
+          detail={`${formatPercent(IVA_RATE)} sobre lo facturado del mes`}
+          tone="sand"
         />
         <MetricCard
           label="Monto no facturado"
@@ -436,6 +451,7 @@ function ClientsView({
         {clients.map((client) => {
           const clientInvoices = invoices.filter((invoice) => invoice.clientId === client.id);
           const monthlyTotal = sumAmounts(clientInvoices.filter((invoice) => invoice.date?.startsWith(selectedMonth)));
+          const monthlyVat = monthlyTotal * IVA_RATE;
           const unpaidInvoices = clientInvoices.filter((invoice) => !invoice.paid);
           const overdueInvoices = unpaidInvoices.filter(isOverdueInvoice);
           const overdueTotal = sumAmounts(overdueInvoices);
@@ -464,6 +480,7 @@ function ClientsView({
                 <div className="mini-stats">
                   <StatBox label="Total vencido" value={formatCurrency(overdueTotal)} />
                   <StatBox label="Facturado del mes" value={formatCurrency(monthlyTotal)} />
+                  <StatBox label="IVA estimado" value={formatCurrency(monthlyVat)} />
                 </div>
 
                 <div className="invoice-list">
@@ -1157,6 +1174,13 @@ function formatShare(value, total) {
     style: "percent",
     maximumFractionDigits: 1,
   }).format(Number(value || 0) / total);
+}
+
+function formatPercent(value) {
+  return new Intl.NumberFormat("es-AR", {
+    style: "percent",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
 }
 
 function formatMonth(value) {

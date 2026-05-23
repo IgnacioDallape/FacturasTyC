@@ -263,7 +263,7 @@ h2 {
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
 }
 
@@ -298,6 +298,10 @@ h2 {
 
 .tone-slate {
   background: linear-gradient(135deg, rgba(246, 236, 215, 0.94), rgba(222, 229, 238, 0.9));
+}
+
+.tone-sand {
+  background: linear-gradient(135deg, rgba(247, 238, 219, 0.94), rgba(237, 226, 196, 0.92));
 }
 
 .dashboard-receivables {
@@ -590,7 +594,7 @@ h2 {
 
 .mini-stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
 }
 
