@@ -238,29 +238,21 @@ function App() {
       <div className="page-gradient" />
 
       <header className="topbar">
-        <div>
-          <p className="eyebrow">Gestion de facturacion</p>
-          <h1>{appState.profile.appName}</h1>
-          <p className="lead">
-            Controla facturas, pendiente de cobro y viajes todavia no facturados desde un solo panel.
-          </p>
-        </div>
+        <h1>{appState.profile.appName}</h1>
 
-        <div className="topbar-side">
-          <div className="segmented">
-            <button
-              className={activeView === "dashboard" ? "is-active" : ""}
-              onClick={() => setActiveView("dashboard")}
-            >
-              Dashboard
-            </button>
-            <button
-              className={activeView === "clientes" ? "is-active" : ""}
-              onClick={() => setActiveView("clientes")}
-            >
-              Clientes
-            </button>
-          </div>
+        <div className="segmented" aria-label="Navegacion principal">
+          <button
+            className={activeView === "dashboard" ? "is-active" : ""}
+            onClick={() => setActiveView("dashboard")}
+          >
+            Dashboard
+          </button>
+          <button
+            className={activeView === "clientes" ? "is-active" : ""}
+            onClick={() => setActiveView("clientes")}
+          >
+            Clientes
+          </button>
         </div>
       </header>
 
@@ -331,7 +323,6 @@ function DashboardView({
               <p className="eyebrow">Resumen principal</p>
               <h2>Facturado pendiente de cobro</h2>
             </div>
-            <span className="badge">Dona por cliente</span>
           </div>
 
           <div className="receivables-body">
@@ -354,10 +345,7 @@ function DashboardView({
                 <div className="breakdown-table">
                   <div className="breakdown-head">
                     <span>Cliente</span>
-                    <span>Pendientes</span>
-                    <span>Participacion</span>
                     <span>Adeudado</span>
-                    <span>US$</span>
                   </div>
 
                   {pendingClients.map((client, index) => (
@@ -366,10 +354,7 @@ function DashboardView({
                         <span className="legend-dot" style={{ background: chartColors[index % chartColors.length] }} />
                         <strong>{client.name}</strong>
                       </div>
-                      <span>{client.pendingCount}</span>
-                      <span>{formatShare(client.totalDue, totalUnpaid)}</span>
                       <strong>{formatCurrency(client.totalDue)}</strong>
-                      <strong>{formatUsdFromArs(client.totalDue)}</strong>
                     </div>
                   ))}
                 </div>
@@ -429,8 +414,10 @@ function ClientsView({
         {clients.map((client) => {
           const clientInvoices = invoices.filter((invoice) => invoice.clientId === client.id);
           const monthlyTotal = sumAmounts(clientInvoices.filter((invoice) => invoice.date?.startsWith(selectedMonth)));
-          const totalDue = sumAmounts(clientInvoices.filter((invoice) => !invoice.paid));
-          const pending = clientInvoices.filter((invoice) => !invoice.paid).length;
+          const unpaidInvoices = clientInvoices.filter((invoice) => !invoice.paid);
+          const overdueInvoices = unpaidInvoices.filter(isOverdueInvoice);
+          const overdueTotal = sumAmounts(overdueInvoices);
+          const pending = unpaidInvoices.length;
 
           return (
             <details className="panel client-disclosure" key={client.id} open={expandedClientId === client.id}>
@@ -442,10 +429,9 @@ function ClientsView({
                 }}
               >
                 <div className="client-name">
-                  <p className="eyebrow">Cliente</p>
                   <h2>{client.name}</h2>
                 </div>
-                <SummaryMetric label="Total adeudado" value={formatCurrency(totalDue)} />
+                <SummaryMetric label="Total vencido" value={formatCurrency(overdueTotal)} />
                 <span className={`status-pill ${pending ? "warning" : "ok"}`}>
                   {pending ? `${pending} pendientes` : "Al dia"}
                 </span>
@@ -454,11 +440,17 @@ function ClientsView({
 
               <div className="client-details">
                 <div className="mini-stats">
-                  <StatBox label="Total adeudado" value={formatCurrency(totalDue)} />
+                  <StatBox label="Total vencido" value={formatCurrency(overdueTotal)} />
                   <StatBox label="Facturado del mes" value={formatCurrency(monthlyTotal)} />
                 </div>
 
-                <InvoiceForm client={client} onSubmit={(values) => onAddInvoice(client.id, values)} />
+                <details className="invoice-form-toggle">
+                  <summary>
+                    <span>Agregar factura</span>
+                    <span className="disclosure-arrow small" aria-hidden="true" />
+                  </summary>
+                  <InvoiceForm client={client} onSubmit={(values) => onAddInvoice(client.id, values)} />
+                </details>
 
                 <div className="invoice-list">
                   {clientInvoices.length ? (
@@ -931,6 +923,19 @@ function normalizeTrip(values) {
 
 function sumAmounts(items) {
   return items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+}
+
+function isOverdueInvoice(invoice) {
+  if (invoice.paid || !invoice.date) return false;
+
+  const invoiceDate = new Date(`${invoice.date}T00:00:00`);
+  if (Number.isNaN(invoiceDate.getTime())) return false;
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const elapsedDays = Math.floor((todayStart - invoiceDate) / 86400000);
+
+  return elapsedDays >= 30;
 }
 
 function slugify(value) {

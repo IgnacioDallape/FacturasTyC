@@ -33,6 +33,7 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at top left, rgba(255, 247, 226, 0.85), transparent 28%),
     linear-gradient(180deg, #efe1bb 0%, #f3e7c9 45%, #f7edd7 100%);
@@ -50,6 +51,8 @@ textarea {
 button {
   border: 0;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #root {
@@ -58,9 +61,11 @@ button {
 
 .app-shell {
   position: relative;
+  width: min(100%, 1480px);
   max-width: 1480px;
   margin: 0 auto;
   padding: 28px;
+  overflow: hidden;
 }
 
 .page-gradient {
@@ -85,12 +90,12 @@ button {
 
 .topbar {
   z-index: 1;
-  display: flex;
-  justify-content: space-between;
-  gap: 24px;
-  align-items: flex-start;
-  padding: 28px 30px;
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  padding: 26px 30px 28px;
   border-radius: var(--radius-xl);
+  text-align: center;
 }
 
 .eyebrow,
@@ -124,6 +129,7 @@ h2 {
 
 h1 {
   font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 0.95;
 }
 
 h2 {
@@ -135,12 +141,6 @@ h2 {
   margin: 10px 0 0;
   color: var(--text-soft);
   font-size: 1rem;
-}
-
-.topbar-side {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
 }
 
 .badge,
@@ -174,19 +174,20 @@ h2 {
 .segmented {
   display: inline-flex;
   align-items: center;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   padding: 6px;
   border-radius: 999px;
-  background: rgba(255, 251, 242, 0.6);
-  border: 1px solid rgba(126, 100, 47, 0.14);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  background: rgba(255, 250, 238, 0.76);
+  border: 1px solid rgba(126, 100, 47, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 12px 22px rgba(112, 87, 44, 0.1);
 }
 
 .segmented button {
-  min-width: 132px;
-  min-height: 46px;
-  padding: 0.75rem 1.1rem;
+  min-width: 150px;
+  min-height: 44px;
+  padding: 0.72rem 1.15rem;
   border-radius: 999px;
   background: transparent;
   color: var(--text-soft);
@@ -195,12 +196,20 @@ h2 {
   transition: 180ms ease;
 }
 
+.segmented button:active,
+.client-summary:active,
+.invoice-form-toggle > summary:active,
+.primary-button:active,
+.ghost-button:active {
+  transform: scale(0.98);
+}
+
 .segmented button.is-active {
-  background: #f6ecd4;
+  background: linear-gradient(180deg, #fff8e9, #efe0bd);
   color: var(--text);
   box-shadow:
-    0 10px 18px rgba(132, 108, 61, 0.12),
-    inset 0 0 0 1px rgba(85, 61, 27, 0.12);
+    0 9px 16px rgba(132, 108, 61, 0.16),
+    inset 0 0 0 1px rgba(85, 61, 27, 0.14);
 }
 
 .toolbar-card {
@@ -389,7 +398,7 @@ h2 {
 
 .breakdown-table {
   min-width: 0;
-  overflow-x: auto;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: rgba(255, 252, 245, 0.62);
@@ -398,7 +407,7 @@ h2 {
 .breakdown-head,
 .breakdown-row {
   display: grid;
-  grid-template-columns: minmax(170px, 1.18fr) minmax(72px, 0.46fr) minmax(92px, 0.58fr) minmax(118px, 0.72fr) minmax(88px, 0.54fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   min-width: 0;
@@ -419,6 +428,12 @@ h2 {
 
 .breakdown-row span {
   color: var(--text-soft);
+}
+
+.breakdown-row > strong:last-child,
+.breakdown-head > span:last-child {
+  justify-self: end;
+  text-align: right;
 }
 
 .breakdown-client {
@@ -480,7 +495,7 @@ h2 {
 
 .client-list {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .client-disclosure {
@@ -493,12 +508,14 @@ h2 {
 .client-summary {
   display: grid;
   grid-template-columns: minmax(150px, 1fr) minmax(130px, auto) auto 22px;
-  gap: 14px;
+  gap: 12px;
   align-items: center;
-  min-height: 78px;
-  padding: 16px 20px;
+  min-height: 66px;
+  padding: 12px 18px;
   cursor: pointer;
   list-style: none;
+  touch-action: manipulation;
+  transition: background-color 180ms ease, transform 140ms ease;
 }
 
 .client-summary::-webkit-details-marker {
@@ -511,24 +528,24 @@ h2 {
 }
 
 .client-name h2 {
-  font-size: 1.55rem;
+  font-size: 1.38rem;
 }
 
 .summary-metric {
   display: grid;
-  gap: 3px;
+  gap: 2px;
   justify-items: end;
 }
 
 .summary-metric span {
   color: var(--text-soft);
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 800;
   text-transform: uppercase;
 }
 
 .summary-metric strong {
-  font-size: 1.08rem;
+  font-size: 1rem;
 }
 
 .disclosure-arrow {
@@ -546,8 +563,8 @@ h2 {
 
 .client-details {
   display: grid;
-  gap: 14px;
-  padding: 20px 24px 24px;
+  gap: 12px;
+  padding: 14px 18px 18px;
   background: rgba(255, 248, 232, 0.24);
 }
 
@@ -559,15 +576,55 @@ h2 {
 
 .stat-box {
   display: grid;
-  gap: 8px;
-  padding: 14px 16px;
+  gap: 6px;
+  padding: 12px 14px;
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.58);
   border: 1px solid var(--line);
 }
 
 .stat-box strong {
-  font-size: 1.2rem;
+  font-size: 1.08rem;
+}
+
+.invoice-form-toggle {
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: rgba(241, 226, 195, 0.44);
+  border: 1px solid var(--line);
+}
+
+.invoice-form-toggle > summary {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 800;
+  list-style: none;
+  touch-action: manipulation;
+  text-transform: uppercase;
+}
+
+.invoice-form-toggle > summary::-webkit-details-marker {
+  display: none;
+}
+
+.invoice-form-toggle[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.invoice-form-toggle[open] .disclosure-arrow.small {
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.disclosure-arrow.small {
+  width: 10px;
+  height: 10px;
 }
 
 .entry-form {
@@ -575,14 +632,15 @@ h2 {
   grid-template-columns: 1.1fr 0.9fr 0.9fr 1.15fr auto auto;
   gap: 12px;
   align-items: end;
-  padding: 16px;
-  border-radius: var(--radius-lg);
-  background: rgba(241, 226, 195, 0.5);
-  border: 1px solid var(--line);
+  padding: 14px;
+  background: rgba(255, 248, 232, 0.34);
 }
 
 .trip-form {
   grid-template-columns: 0.9fr 0.85fr 1.25fr 0.95fr 1fr auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: rgba(241, 226, 195, 0.5);
 }
 
 .full-span {
@@ -644,7 +702,7 @@ h2 {
 
 .row-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   justify-content: flex-end;
   flex-wrap: wrap;
 }
@@ -692,6 +750,20 @@ h2 {
 
 .ghost-button.danger {
   color: #9b5743;
+}
+
+.invoice-row .ghost-button,
+.trip-row .ghost-button {
+  min-height: 34px;
+  padding: 0.55rem 0.78rem;
+  font-size: 0.78rem;
+}
+
+.invoice-row .status-pill,
+.trip-row .status-pill {
+  min-height: 28px;
+  padding: 0.24rem 0.65rem;
+  font-size: 0.62rem;
 }
 
 .primary-button:hover,
@@ -857,10 +929,5 @@ textarea:focus {
 
   .client-breakdown {
     padding: 16px;
-  }
-
-  .breakdown-head,
-  .breakdown-row {
-    min-width: 620px;
   }
 }
