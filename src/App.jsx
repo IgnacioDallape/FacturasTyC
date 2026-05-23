@@ -455,31 +455,39 @@ function ClientsView({
                 <div className="invoice-list">
                   {clientInvoices.length ? (
                     clientInvoices.map((invoice) => (
-                      <div className={`invoice-row ${invoice.paid ? "is-paid" : ""}`} key={invoice.id}>
-                        <div className="invoice-main">
-                          <span className="invoice-label">Nro. factura</span>
-                          <strong>{invoice.invoiceNumber}</strong>
-                          <p>
-                            {formatDate(invoice.date)}
-                            {client.isMisc && invoice.customerName ? ` - ${invoice.customerName}` : ""}
-                          </p>
+                      <details className={`invoice-row ${invoice.paid ? "is-paid" : ""}`} key={invoice.id}>
+                        <summary>
+                          <span>
+                            <small>Nro. factura</small>
+                            <strong>{invoice.invoiceNumber}</strong>
+                          </span>
+                          <span>
+                            <small>Fecha</small>
+                            <strong>{formatDate(invoice.date)}</strong>
+                          </span>
+                          <span>
+                            <small>Monto</small>
+                            <strong>{formatCurrency(invoice.amount)}</strong>
+                          </span>
+                          <span className="disclosure-arrow small" aria-hidden="true" />
+                        </summary>
+                        <div className="invoice-row-details">
+                          {client.isMisc && invoice.customerName ? (
+                            <p className="invoice-customer">{invoice.customerName}</p>
+                          ) : null}
+                          <span className={`status-pill ${invoice.paid ? "ok" : "warning"}`}>
+                            {invoice.paid ? "Pagada" : "Pendiente"}
+                          </span>
+                          <div className="row-actions">
+                            <button className="ghost-button" type="button" onClick={() => onToggleInvoicePaid(invoice.id)}>
+                              {invoice.paid ? "Marcar impaga" : "Marcar pagada"}
+                            </button>
+                            <button className="ghost-button danger" type="button" onClick={() => onDeleteInvoice(invoice.id)}>
+                              Eliminar
+                            </button>
+                          </div>
                         </div>
-                        <div className="invoice-amount">
-                          <span>Valor</span>
-                          <strong>{formatCurrency(invoice.amount)}</strong>
-                        </div>
-                        <span className={`status-pill ${invoice.paid ? "ok" : "warning"}`}>
-                          {invoice.paid ? "Pagada" : "Pendiente"}
-                        </span>
-                        <div className="row-actions">
-                          <button className="ghost-button" type="button" onClick={() => onToggleInvoicePaid(invoice.id)}>
-                            {invoice.paid ? "Marcar impaga" : "Marcar pagada"}
-                          </button>
-                          <button className="ghost-button danger" type="button" onClick={() => onDeleteInvoice(invoice.id)}>
-                            Eliminar
-                          </button>
-                        </div>
-                      </div>
+                      </details>
                     ))
                   ) : (
                     <EmptyState title="Sin facturas" message="Carga la primera factura de este cliente." />

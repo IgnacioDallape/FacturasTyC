@@ -199,6 +199,7 @@ h2 {
 .segmented button:active,
 .client-summary:active,
 .invoice-form-toggle > summary:active,
+.invoice-row summary:active,
 .primary-button:active,
 .ghost-button:active {
   transform: scale(0.98);
@@ -662,29 +663,73 @@ h2 {
 }
 
 .invoice-row {
-  grid-template-columns: 1.15fr 0.8fr 0.7fr auto;
+  display: block;
+  overflow: hidden;
+  padding: 0;
+  border-radius: var(--radius-md);
 }
 
-.invoice-main,
-.invoice-amount {
+.invoice-row summary {
   display: grid;
-  gap: 4px;
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
+  grid-template-columns: minmax(0, 1fr) minmax(92px, auto) minmax(104px, auto) 14px;
+  gap: 12px;
+  align-items: center;
+  min-height: 54px;
+  padding: 10px 14px;
+  cursor: pointer;
+  list-style: none;
+  touch-action: manipulation;
   background: rgba(255, 255, 255, 0.68);
-  border: 1px solid rgba(126, 100, 47, 0.12);
 }
 
-.invoice-main p {
-  margin: 0;
+.invoice-row summary::-webkit-details-marker {
+  display: none;
 }
 
-.invoice-label,
-.invoice-amount span {
+.invoice-row summary span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.invoice-row small {
   color: var(--text-soft);
-  font-size: 0.68rem;
+  font-size: 0.58rem;
   font-weight: 800;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
+}
+
+.invoice-row summary strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.92rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invoice-row[open] summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.invoice-row[open] .disclosure-arrow.small {
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.invoice-row-details {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px 12px;
+  background: rgba(255, 248, 232, 0.52);
+}
+
+.invoice-customer {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.84rem;
+  font-weight: 700;
 }
 
 .invoice-row.is-paid {
@@ -801,7 +846,6 @@ textarea:focus {
   .entry-form,
   .trip-form,
   .client-create-form,
-  .invoice-row,
   .trip-row {
     grid-template-columns: 1fr;
   }
@@ -920,6 +964,25 @@ textarea:focus {
 
   .client-name h2 {
     font-size: 1.35rem;
+  }
+
+  .invoice-row summary {
+    grid-template-columns: minmax(0, 1fr) minmax(76px, auto) minmax(88px, auto) 12px;
+    gap: 8px;
+    min-height: 50px;
+    padding: 9px 12px;
+  }
+
+  .invoice-row small {
+    font-size: 0.52rem;
+  }
+
+  .invoice-row summary strong {
+    font-size: 0.82rem;
+  }
+
+  .invoice-row-details {
+    grid-template-columns: 1fr;
   }
 
   .disclosure-arrow {
