@@ -1,4 +1,4 @@
-const CACHE_NAME = "facturastyc-v3";
+const CACHE_NAME = "facturastyc-v4";
 const APP_SHELL = [
   "/",
   "/manifest.webmanifest",

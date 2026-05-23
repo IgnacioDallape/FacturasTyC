@@ -398,16 +398,34 @@ function ClientsView({
     return true;
   };
 
+  const createInvoice = (clientId, values) => {
+    const wasCreated = onAddInvoice(clientId, values);
+    if (!wasCreated) return false;
+
+    setExpandedClientId(clientId);
+    return true;
+  };
+
   return (
     <main className="layout-stack">
       <section className="clients-actions">
-        {!showClientForm ? (
-          <button className="primary-button" type="button" onClick={() => setShowClientForm(true)}>
-            Agregar cliente
-          </button>
-        ) : (
-          <ClientForm onSubmit={createClient} onCancel={() => setShowClientForm(false)} />
-        )}
+        <div className="clients-action-stack">
+          {!showClientForm ? (
+            <button className="primary-button" type="button" onClick={() => setShowClientForm(true)}>
+              Agregar cliente
+            </button>
+          ) : (
+            <ClientForm onSubmit={createClient} onCancel={() => setShowClientForm(false)} />
+          )}
+
+          <details className="invoice-form-toggle global-invoice-form">
+            <summary>
+              <span>Agregar factura</span>
+              <span className="disclosure-arrow small" aria-hidden="true" />
+            </summary>
+            <InvoiceForm clients={clients} onSubmit={createInvoice} />
+          </details>
+        </div>
       </section>
 
       <section className="client-list">
@@ -443,14 +461,6 @@ function ClientsView({
                   <StatBox label="Total vencido" value={formatCurrency(overdueTotal)} />
                   <StatBox label="Facturado del mes" value={formatCurrency(monthlyTotal)} />
                 </div>
-
-                <details className="invoice-form-toggle">
-                  <summary>
-                    <span>Agregar factura</span>
-                    <span className="disclosure-arrow small" aria-hidden="true" />
-                  </summary>
-                  <InvoiceForm client={client} onSubmit={(values) => onAddInvoice(client.id, values)} />
-                </details>
 
                 <div className="invoice-list">
                   {clientInvoices.length ? (
@@ -587,24 +597,69 @@ function ClientForm({ onSubmit, onCancel }) {
   );
 }
 
-function InvoiceForm({ client, onSubmit }) {
-  const [formValues, setFormValues] = useState(blankInvoice);
+function InvoiceForm({ clients, onSubmit }) {
+  const [formValues, setFormValues] = useState({
+    ...blankInvoice,
+    clientId: clients[0]?.id || "",
+  });
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!clients.some((client) => client.id === formValues.clientId)) {
+      setFormValues((current) => ({
+        ...current,
+        clientId: clients[0]?.id || "",
+      }));
+    }
+  }, [clients, formValues.clientId]);
+
+  const selectedClient = clients.find((client) => client.id === formValues.clientId);
 
   const handleSubmit = (event) => {
     event.preventDefault();
 
-    if (!onSubmit(formValues)) {
-      setError("Completa el numero y el valor de la factura.");
+    if (!formValues.clientId) {
+      setError("Primero carga un cliente para poder facturarle.");
       return;
     }
 
-    setFormValues(blankInvoice);
+    if (!onSubmit(formValues.clientId, formValues)) {
+      setError("Completa empresa, numero y valor de la factura.");
+      return;
+    }
+
+    setFormValues({
+      ...blankInvoice,
+      clientId: formValues.clientId,
+    });
     setError("");
   };
 
   return (
     <form className="entry-form" onSubmit={handleSubmit}>
+      <label>
+        Empresa
+        <select
+          required
+          value={formValues.clientId}
+          onChange={(event) => {
+            setFormValues({ ...formValues, clientId: event.target.value, customerName: "" });
+            setError("");
+          }}
+          disabled={!clients.length}
+        >
+          {clients.length ? (
+            clients.map((client) => (
+              <option key={client.id} value={client.id}>
+                {client.name}
+              </option>
+            ))
+          ) : (
+            <option value="">Carga un cliente primero</option>
+          )}
+        </select>
+      </label>
+
       <label>
         Nro. factura
         <input
@@ -643,7 +698,7 @@ function InvoiceForm({ client, onSubmit }) {
         />
       </label>
 
-      {client.isMisc ? (
+      {selectedClient?.isMisc ? (
         <label>
           Nombre del cliente
           <input
@@ -663,7 +718,7 @@ function InvoiceForm({ client, onSubmit }) {
         <span>Cargar como pagada</span>
       </label>
 
-      <button className="primary-button" type="submit">
+      <button className="primary-button" type="submit" disabled={!clients.length}>
         Agregar factura
       </button>
       {error ? <p className="form-error full-span">{error}</p> : null}
