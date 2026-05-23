@@ -524,6 +524,9 @@ function TripsView({
   onDeleteTrip,
 }) {
   const openTrips = unbilledTrips.filter((trip) => !trip.billed);
+  const clientsWithOpenTrips = clients.filter((client) =>
+    openTrips.some((trip) => trip.clientId === client.id),
+  );
   const [expandedClientId, setExpandedClientId] = useState("");
 
   return (
@@ -551,7 +554,7 @@ function TripsView({
       </section>
 
       <section className="client-list">
-        {clients.map((client) => {
+        {clientsWithOpenTrips.length ? clientsWithOpenTrips.map((client) => {
           const clientTrips = unbilledTrips.filter((trip) => trip.clientId === client.id);
           const unbilledClientTrips = clientTrips.filter((trip) => !trip.billed);
           const totalUnbilled = sumAmounts(unbilledClientTrips);
@@ -627,7 +630,11 @@ function TripsView({
               </div>
             </details>
           );
-        })}
+        }) : (
+          <section className="panel trips-panel">
+            <EmptyState title="Sin viajes no facturados" message="Cuando un cliente tenga viajes pendientes, va a aparecer aca." />
+          </section>
+        )}
       </section>
     </main>
   );
