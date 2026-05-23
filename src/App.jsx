@@ -10,7 +10,7 @@ const currentDate = today.toISOString().slice(0, 10);
 
 const initialState = {
   profile: {
-    appName: "RemitosApp",
+    appName: "Facturas",
   },
   clients: [
     { id: "ypf", name: "YPF", isMisc: false },
@@ -89,7 +89,7 @@ const blankTrip = {
 };
 
 function App() {
-  const [appState, setAppState, storageStatus] = useDatabaseState(initialState);
+  const [appState, setAppState] = useDatabaseState(initialState);
   const [activeView, setActiveView] = useState("dashboard");
   const selectedMonth = currentMonth;
 
@@ -247,7 +247,6 @@ function App() {
         </div>
 
         <div className="topbar-side">
-          <span className="badge status-soft">{storageStatus.label}</span>
           <div className="segmented">
             <button
               className={activeView === "dashboard" ? "is-active" : ""}
@@ -447,7 +446,6 @@ function ClientsView({
                   <h2>{client.name}</h2>
                 </div>
                 <SummaryMetric label="Total adeudado" value={formatCurrency(totalDue)} />
-                <SummaryMetric label="Facturado del mes" value={formatCurrency(monthlyTotal)} />
                 <span className={`status-pill ${pending ? "warning" : "ok"}`}>
                   {pending ? `${pending} pendientes` : "Al dia"}
                 </span>
@@ -467,13 +465,17 @@ function ClientsView({
                     clientInvoices.map((invoice) => (
                       <div className={`invoice-row ${invoice.paid ? "is-paid" : ""}`} key={invoice.id}>
                         <div className="invoice-main">
+                          <span className="invoice-label">Nro. factura</span>
                           <strong>{invoice.invoiceNumber}</strong>
                           <p>
                             {formatDate(invoice.date)}
                             {client.isMisc && invoice.customerName ? ` - ${invoice.customerName}` : ""}
                           </p>
                         </div>
-                        <strong>{formatCurrency(invoice.amount)}</strong>
+                        <div className="invoice-amount">
+                          <span>Valor</span>
+                          <strong>{formatCurrency(invoice.amount)}</strong>
+                        </div>
                         <span className={`status-pill ${invoice.paid ? "ok" : "warning"}`}>
                           {invoice.paid ? "Pagada" : "Pendiente"}
                         </span>
@@ -836,10 +838,6 @@ function EmptyState({ title, message }) {
 
 function useDatabaseState(defaultValue) {
   const [state, setState] = useState(defaultValue);
-  const [status, setStatus] = useState({
-    label: isSupabaseConfigured ? "Conectando datos" : "Modo local",
-    type: isSupabaseConfigured ? "loading" : "local",
-  });
   const [ready, setReady] = useState(!isSupabaseConfigured);
 
   useEffect(() => {
@@ -864,13 +862,11 @@ function useDatabaseState(defaultValue) {
 
         if (isMounted) {
           setState(nextState);
-          setStatus({ label: "Supabase conectado", type: "remote" });
           setReady(true);
         }
       } catch (error) {
         console.error(error);
         if (isMounted) {
-          setStatus({ label: "Error de guardado remoto", type: "error" });
           setReady(true);
         }
       }
@@ -889,11 +885,7 @@ function useDatabaseState(defaultValue) {
 
       if (isSupabaseConfigured) {
         saveRemoteState(nextState)
-          .then(() => setStatus({ label: "Supabase conectado", type: "remote" }))
-          .catch((error) => {
-            console.error(error);
-            setStatus({ label: "Error al guardar", type: "error" });
-          });
+          .catch((error) => console.error(error));
       } else {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
       }
@@ -902,14 +894,14 @@ function useDatabaseState(defaultValue) {
     });
   };
 
-  return [state, ready ? setAndPersistState : setState, status];
+  return [state, ready ? setAndPersistState : setState];
 }
 
 function mergeAppState(defaultValue, storedValue) {
   return {
     ...defaultValue,
     ...storedValue,
-    profile: { ...defaultValue.profile, ...storedValue.profile },
+    profile: defaultValue.profile,
     clients: Array.isArray(storedValue.clients) ? storedValue.clients : defaultValue.clients,
     invoices: Array.isArray(storedValue.invoices) ? storedValue.invoices : defaultValue.invoices,
     unbilledTrips: Array.isArray(storedValue.unbilledTrips) ? storedValue.unbilledTrips : defaultValue.unbilledTrips,
