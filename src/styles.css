@@ -755,6 +755,17 @@ h2 {
   font-weight: 700;
 }
 
+.trip-detail-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.trip-note {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.8rem;
+}
+
 .invoice-row.is-paid {
   opacity: 0.72;
 }

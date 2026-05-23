@@ -285,7 +285,6 @@ function App() {
       ) : (
         <TripsView
           clients={clients}
-          clientsById={clientsById}
           unbilledTrips={unbilledTrips}
           onAddTrip={addTrip}
           onToggleTripBilled={toggleTripBilled}
@@ -519,57 +518,116 @@ function ClientsView({
 
 function TripsView({
   clients,
-  clientsById,
   unbilledTrips,
   onAddTrip,
   onToggleTripBilled,
   onDeleteTrip,
 }) {
   const openTrips = unbilledTrips.filter((trip) => !trip.billed);
+  const [expandedClientId, setExpandedClientId] = useState("");
 
   return (
     <main className="layout-stack">
       <section className="panel trips-panel">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">Pendiente de facturar</p>
-            <h2>Viajes realizados y no facturados</h2>
+            <p className="eyebrow">Seccion</p>
+            <h2>Viajes no facturados</h2>
           </div>
           <span className="badge">{openTrips.length} abiertos</span>
         </div>
+      </section>
 
-        <TripForm clients={clients} onSubmit={onAddTrip} />
+      <section className="clients-actions">
+        <div className="clients-action-stack">
+          <details className="invoice-form-toggle global-invoice-form">
+            <summary>
+              <span>Agregar viaje no facturado</span>
+              <span className="disclosure-arrow small" aria-hidden="true" />
+            </summary>
+            <TripForm clients={clients} onSubmit={onAddTrip} />
+          </details>
+        </div>
+      </section>
 
-        <div className="trip-list">
-          {unbilledTrips.length ? (
-            unbilledTrips.map((trip) => (
-              <div className={`trip-row ${trip.billed ? "is-muted" : ""}`} key={trip.id}>
-                <div>
-                  <strong>{clientsById[trip.clientId]?.name || "Cliente"}</strong>
-                  <p>
-                    {trip.route} - {formatDate(trip.date)}
-                    {trip.customerName ? ` - ${trip.customerName}` : ""}
-                  </p>
-                  {trip.note ? <small>{trip.note}</small> : null}
+      <section className="client-list">
+        {clients.map((client) => {
+          const clientTrips = unbilledTrips.filter((trip) => trip.clientId === client.id);
+          const unbilledClientTrips = clientTrips.filter((trip) => !trip.billed);
+          const totalUnbilled = sumAmounts(unbilledClientTrips);
+          const pending = unbilledClientTrips.length;
+
+          return (
+            <details className="panel client-disclosure" key={client.id} open={expandedClientId === client.id}>
+              <summary
+                className="client-summary"
+                onClick={(event) => {
+                  event.preventDefault();
+                  setExpandedClientId((current) => (current === client.id ? "" : client.id));
+                }}
+              >
+                <div className="client-name">
+                  <h2>{client.name}</h2>
                 </div>
-                <strong>{formatCurrency(trip.amount)}</strong>
-                <span className={`status-pill ${trip.billed ? "ok" : "warning"}`}>
-                  {trip.billed ? "Facturado" : "No facturado"}
+                <SummaryMetric label="Total no facturado" value={formatCurrency(totalUnbilled)} />
+                <span className={`status-pill ${pending ? "warning" : "ok"}`}>
+                  {pending ? `${pending} viajes` : "Al dia"}
                 </span>
-                <div className="row-actions">
-                  <button className="ghost-button" type="button" onClick={() => onToggleTripBilled(trip.id)}>
-                    {trip.billed ? "Reabrir" : "Marcar facturado"}
-                  </button>
-                  <button className="ghost-button danger" type="button" onClick={() => onDeleteTrip(trip.id)}>
-                    Eliminar
-                  </button>
+                <span className="disclosure-arrow" aria-hidden="true" />
+              </summary>
+
+              <div className="client-details">
+                <div className="mini-stats">
+                  <StatBox label="Total no facturado" value={formatCurrency(totalUnbilled)} />
+                  <StatBox label="Viajes pendientes" value={String(pending)} />
+                </div>
+
+                <div className="trip-list">
+                  {clientTrips.length ? (
+                    clientTrips.map((trip) => (
+                      <details className={`invoice-row ${trip.billed ? "is-paid" : ""}`} key={trip.id}>
+                        <summary>
+                          <span>
+                            <small>Trayecto</small>
+                            <strong>{trip.route}</strong>
+                          </span>
+                          <span>
+                            <small>Fecha</small>
+                            <strong>{formatDate(trip.date)}</strong>
+                          </span>
+                          <span>
+                            <small>Monto</small>
+                            <strong>{formatCurrency(trip.amount)}</strong>
+                          </span>
+                          <span className="disclosure-arrow small" aria-hidden="true" />
+                        </summary>
+                        <div className="invoice-row-details">
+                          <div className="trip-detail-copy">
+                            {client.isMisc && trip.customerName ? <p className="invoice-customer">{trip.customerName}</p> : null}
+                            {trip.note ? <p className="trip-note">{trip.note}</p> : null}
+                          </div>
+                          <span className={`status-pill ${trip.billed ? "ok" : "warning"}`}>
+                            {trip.billed ? "Facturado" : "No facturado"}
+                          </span>
+                          <div className="row-actions">
+                            <button className="ghost-button" type="button" onClick={() => onToggleTripBilled(trip.id)}>
+                              {trip.billed ? "Reabrir" : "Marcar facturado"}
+                            </button>
+                            <button className="ghost-button danger" type="button" onClick={() => onDeleteTrip(trip.id)}>
+                              Eliminar
+                            </button>
+                          </div>
+                        </div>
+                      </details>
+                    ))
+                  ) : (
+                    <EmptyState title="Sin viajes" message="Carga el primer viaje pendiente de este cliente." />
+                  )}
                 </div>
               </div>
-            ))
-          ) : (
-            <EmptyState title="Sin viajes pendientes" message="No hay trabajos pendientes de convertir en factura." />
-          )}
-        </div>
+            </details>
+          );
+        })}
       </section>
     </main>
   );
