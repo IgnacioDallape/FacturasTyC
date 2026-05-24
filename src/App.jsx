@@ -518,13 +518,15 @@ function ClientsView({
                 <button
                   className="ghost-button compact-action"
                   type="button"
+                  aria-label={`Editar ${client.name}`}
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
                     setEditingClient(client);
                   }}
                 >
-                  Editar
+                  <span aria-hidden="true" className="edit-icon">✎</span>
+                  <span>Editar</span>
                 </button>
                 <SummaryMetric label="Total vencido" value={formatCurrency(overdueTotal)} />
                 <span className={`status-pill ${overdueCount ? "warning" : hasOpenInvoices ? "soft" : "ok"}`}>
