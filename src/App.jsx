@@ -80,6 +80,7 @@ const blankInvoice = {
   amount: "",
   paid: false,
   customerName: "",
+  cargoNumber: "",
 };
 
 const blankTrip = {
@@ -464,7 +465,7 @@ function ClientsView({
   onToggleInvoicePaid,
   onDeleteInvoice,
 }) {
-  const [showClientForm, setShowClientForm] = useState(false);
+  const [showClientModal, setShowClientModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
   const [expandedClientId, setExpandedClientId] = useState("");
@@ -474,7 +475,7 @@ function ClientsView({
     if (!clientId) return false;
 
     setExpandedClientId(clientId);
-    setShowClientForm(false);
+    setShowClientModal(false);
     return true;
   };
 
@@ -500,19 +501,21 @@ function ClientsView({
     <main className="layout-stack">
       <section className="clients-actions">
         <div className="clients-action-stack">
-          {!showClientForm ? (
-            <button className="primary-button" type="button" onClick={() => setShowClientForm(true)}>
-              Agregar cliente
-            </button>
-          ) : (
-            <ClientForm onSubmit={createClient} onCancel={() => setShowClientForm(false)} />
-          )}
+          <button className="primary-button" type="button" onClick={() => setShowClientModal(true)}>
+            Agregar cliente
+          </button>
 
           <button className="primary-button" type="button" onClick={() => setShowInvoiceModal(true)}>
             Agregar factura
           </button>
         </div>
       </section>
+
+      {showClientModal ? (
+        <FormModal title="Agregar cliente" onClose={() => setShowClientModal(false)}>
+          <ClientForm onSubmit={createClient} onCancel={() => setShowClientModal(false)} />
+        </FormModal>
+      ) : null}
 
       {showInvoiceModal ? (
         <FormModal title="Agregar factura" onClose={() => setShowInvoiceModal(false)}>
@@ -601,8 +604,15 @@ function ClientsView({
                           <span className="disclosure-arrow small" aria-hidden="true" />
                         </summary>
                         <div className="invoice-row-details">
-                          {client.isMisc && invoice.customerName ? (
-                            <p className="invoice-customer">{invoice.customerName}</p>
+                          {(client.isMisc && invoice.customerName) || invoice.cargoNumber ? (
+                            <div className="invoice-detail-copy">
+                              {client.isMisc && invoice.customerName ? (
+                                <p className="invoice-customer">{invoice.customerName}</p>
+                              ) : null}
+                              {invoice.cargoNumber ? (
+                                <p className="invoice-customer">Carga {invoice.cargoNumber}</p>
+                              ) : null}
+                            </div>
                           ) : null}
                           <span className={`status-pill ${getInvoiceStatusTone(invoice)}`}>
                             {getInvoiceStatusLabel(invoice)}
@@ -932,6 +942,7 @@ function InvoiceForm({ clients, onSubmit }) {
   }, [clients, formValues.clientId]);
 
   const selectedClient = clients.find((client) => client.id === formValues.clientId);
+  const needsCargoNumber = isFecovitaClient(selectedClient);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -961,7 +972,7 @@ function InvoiceForm({ clients, onSubmit }) {
           required
           value={formValues.clientId}
           onChange={(event) => {
-            setFormValues({ ...formValues, clientId: event.target.value, customerName: "" });
+            setFormValues({ ...formValues, clientId: event.target.value, customerName: "", cargoNumber: "" });
             setError("");
           }}
           disabled={!clients.length}
@@ -1023,6 +1034,17 @@ function InvoiceForm({ clients, onSubmit }) {
             value={formValues.customerName}
             onChange={(event) => setFormValues({ ...formValues, customerName: event.target.value })}
             placeholder="Cliente asociado"
+          />
+        </label>
+      ) : null}
+
+      {needsCargoNumber ? (
+        <label>
+          Numero de carga
+          <input
+            value={formValues.cargoNumber}
+            onChange={(event) => setFormValues({ ...formValues, cargoNumber: event.target.value })}
+            placeholder="Referencia de carga"
           />
         </label>
       ) : null}
@@ -1331,6 +1353,7 @@ function normalizeInvoice(values) {
     amount: Number(values.amount || 0),
     paid: Boolean(values.paid),
     customerName: values.customerName?.trim() || "",
+    cargoNumber: values.cargoNumber?.trim() || "",
   };
 }
 
@@ -1364,6 +1387,10 @@ function isOverdueInvoice(invoice) {
   const elapsedDays = Math.floor((todayStart - invoiceDate) / 86400000);
 
   return elapsedDays >= 30;
+}
+
+function isFecovitaClient(client) {
+  return slugify(client?.name || "") === "fecovita";
 }
 
 function getInvoiceStatusLabel(invoice) {

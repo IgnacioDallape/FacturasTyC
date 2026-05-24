@@ -867,6 +867,11 @@ h2 {
   font-weight: 700;
 }
 
+.invoice-detail-copy {
+  display: grid;
+  gap: 5px;
+}
+
 .trip-detail-copy {
   display: grid;
   gap: 6px;
@@ -973,6 +978,30 @@ textarea {
   background: rgba(255, 252, 245, 0.9);
   color: var(--text);
   outline: none;
+}
+
+select {
+  appearance: none;
+  padding-right: 2.8rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(68, 51, 30, 0.78) 50%),
+    linear-gradient(135deg, rgba(68, 51, 30, 0.78) 50%, transparent 50%),
+    linear-gradient(135deg, rgba(246, 233, 198, 0.82), rgba(255, 252, 245, 0.94));
+  background-position:
+    calc(100% - 20px) 50%,
+    calc(100% - 14px) 50%,
+    0 0;
+  background-size:
+    6px 6px,
+    6px 6px,
+    100% 100%;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+select option {
+  background: #f9efd8;
+  color: var(--text);
 }
 
 input:focus,
