@@ -171,6 +171,11 @@ h2 {
   color: #b15f00;
 }
 
+.status-pill.soft {
+  background: rgba(255, 255, 255, 0.56);
+  color: var(--text-soft);
+}
+
 .segmented {
   display: inline-flex;
   align-items: center;

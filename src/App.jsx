@@ -112,13 +112,14 @@ function App() {
         const clientInvoices = invoices.filter((invoice) => invoice.clientId === client.id);
         const monthlyInvoices = clientInvoices.filter((invoice) => invoice.date?.startsWith(selectedMonth));
         const unpaidInvoices = clientInvoices.filter((invoice) => !invoice.paid);
+        const overdueInvoices = unpaidInvoices.filter(isOverdueInvoice);
 
         return {
           ...client,
           totalDue: sumAmounts(unpaidInvoices),
           monthTotal: sumAmounts(monthlyInvoices),
           monthVat: sumAmounts(monthlyInvoices) * IVA_RATE,
-          pendingCount: unpaidInvoices.length,
+          pendingCount: overdueInvoices.length,
           totalInvoices: clientInvoices.length,
         };
       }),
@@ -157,7 +158,7 @@ function App() {
         .map((client) => ({
           label: client.name,
           value: client.totalDue,
-          detail: `${client.pendingCount} pendientes`,
+          detail: client.pendingCount ? `${client.pendingCount} vencidas` : "En termino",
         })),
     [dashboardSummary],
   );
@@ -455,7 +456,8 @@ function ClientsView({
           const unpaidInvoices = clientInvoices.filter((invoice) => !invoice.paid);
           const overdueInvoices = unpaidInvoices.filter(isOverdueInvoice);
           const overdueTotal = sumAmounts(overdueInvoices);
-          const pending = unpaidInvoices.length;
+          const overdueCount = overdueInvoices.length;
+          const hasOpenInvoices = unpaidInvoices.length > 0;
 
           return (
             <details className="panel client-disclosure" key={client.id} open={expandedClientId === client.id}>
@@ -470,8 +472,8 @@ function ClientsView({
                   <h2>{client.name}</h2>
                 </div>
                 <SummaryMetric label="Total vencido" value={formatCurrency(overdueTotal)} />
-                <span className={`status-pill ${pending ? "warning" : "ok"}`}>
-                  {pending ? `${pending} pendientes` : "Al dia"}
+                <span className={`status-pill ${overdueCount ? "warning" : hasOpenInvoices ? "soft" : "ok"}`}>
+                  {overdueCount ? `${overdueCount} vencidas` : hasOpenInvoices ? "En termino" : "Al dia"}
                 </span>
                 <span className="disclosure-arrow" aria-hidden="true" />
               </summary>
@@ -506,8 +508,8 @@ function ClientsView({
                           {client.isMisc && invoice.customerName ? (
                             <p className="invoice-customer">{invoice.customerName}</p>
                           ) : null}
-                          <span className={`status-pill ${invoice.paid ? "ok" : "warning"}`}>
-                            {invoice.paid ? "Pagada" : "Pendiente"}
+                          <span className={`status-pill ${getInvoiceStatusTone(invoice)}`}>
+                            {getInvoiceStatusLabel(invoice)}
                           </span>
                           <div className="row-actions">
                             <button className="ghost-button" type="button" onClick={() => onToggleInvoicePaid(invoice.id)}>
@@ -1101,6 +1103,18 @@ function isOverdueInvoice(invoice) {
   const elapsedDays = Math.floor((todayStart - invoiceDate) / 86400000);
 
   return elapsedDays >= 30;
+}
+
+function getInvoiceStatusLabel(invoice) {
+  if (invoice.paid) return "Pagada";
+  if (isOverdueInvoice(invoice)) return "Pendiente";
+  return "En termino";
+}
+
+function getInvoiceStatusTone(invoice) {
+  if (invoice.paid) return "ok";
+  if (isOverdueInvoice(invoice)) return "warning";
+  return "soft";
 }
 
 function slugify(value) {
