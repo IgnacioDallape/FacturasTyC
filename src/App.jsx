@@ -561,7 +561,7 @@ function TripsView({
       </section>
 
       <section className="clients-actions">
-        <div className="clients-action-stack">
+        <div className="clients-action-stack single-action-stack">
           <details className="invoice-form-toggle global-invoice-form">
             <summary>
               <span>Agregar viaje no facturado</span>
