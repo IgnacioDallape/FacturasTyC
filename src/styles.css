@@ -737,6 +737,48 @@ h2 {
   align-self: start;
 }
 
+.iva-header {
+  align-items: center;
+}
+
+.month-control {
+  display: grid;
+  gap: 8px;
+  min-width: 220px;
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.fiscal-credit-form {
+  grid-template-columns: minmax(220px, 1fr) auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: rgba(241, 226, 195, 0.5);
+}
+
+.credit-list {
+  display: grid;
+  gap: 10px;
+}
+
+.credit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: var(--radius-md);
+  background: rgba(255, 251, 242, 0.58);
+}
+
+.credit-row span {
+  color: var(--text);
+  font-weight: 800;
+}
+
 .full-span {
   grid-column: 1 / -2;
 }
@@ -949,6 +991,7 @@ textarea:focus {
 
   .entry-form,
   .trip-form,
+  .fiscal-credit-form,
   .client-create-form,
   .trip-row {
     grid-template-columns: 1fr;
@@ -1019,6 +1062,16 @@ textarea:focus {
   .inline-form,
   .mini-stats {
     grid-template-columns: 1fr;
+  }
+
+  .iva-header,
+  .credit-row {
+    grid-template-columns: 1fr;
+  }
+
+  .month-control {
+    width: 100%;
+    min-width: 0;
   }
 
   .dashboard-receivables {

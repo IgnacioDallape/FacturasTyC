@@ -71,6 +71,7 @@ const initialState = {
       billed: false,
     },
   ],
+  fiscalCredits: [],
 };
 
 const blankInvoice = {
@@ -90,6 +91,10 @@ const blankTrip = {
   note: "",
 };
 
+const blankFiscalCredit = {
+  amount: "",
+};
+
 function App() {
   const [appState, setAppState] = useDatabaseState(initialState);
   const [activeView, setActiveView] = useState("dashboard");
@@ -98,6 +103,7 @@ function App() {
   const clients = appState.clients || [];
   const invoices = appState.invoices || [];
   const unbilledTrips = appState.unbilledTrips || [];
+  const fiscalCredits = appState.fiscalCredits || [];
 
   const clientsById = useMemo(
     () =>
@@ -259,6 +265,25 @@ function App() {
     }));
   };
 
+  const addFiscalCredit = (month, values) => {
+    const amount = Number(values.amount || 0);
+    if (!month || !amount) return false;
+
+    setAppState((current) => ({
+      ...current,
+      fiscalCredits: [{ id: createRecordId("fiscal-credit"), month, amount }, ...(current.fiscalCredits || [])],
+    }));
+
+    return true;
+  };
+
+  const deleteFiscalCredit = (creditId) => {
+    setAppState((current) => ({
+      ...current,
+      fiscalCredits: (current.fiscalCredits || []).filter((credit) => credit.id !== creditId),
+    }));
+  };
+
   return (
     <div className="app-shell">
       <div className="page-gradient" />
@@ -285,6 +310,12 @@ function App() {
           >
             Viajes
           </button>
+          <button
+            className={activeView === "iva" ? "is-active" : ""}
+            onClick={() => setActiveView("iva")}
+          >
+            IVA
+          </button>
         </div>
       </header>
 
@@ -310,13 +341,20 @@ function App() {
           onToggleInvoicePaid={toggleInvoicePaid}
           onDeleteInvoice={deleteInvoice}
         />
-      ) : (
+      ) : activeView === "viajes" ? (
         <TripsView
           clients={clients}
           unbilledTrips={unbilledTrips}
           onAddTrip={addTrip}
           onToggleTripBilled={toggleTripBilled}
           onDeleteTrip={deleteTrip}
+        />
+      ) : (
+        <IvaView
+          invoices={invoices}
+          fiscalCredits={fiscalCredits}
+          onAddFiscalCredit={addFiscalCredit}
+          onDeleteFiscalCredit={deleteFiscalCredit}
         />
       )}
     </div>
@@ -728,6 +766,80 @@ function TripsView({
   );
 }
 
+function IvaView({
+  invoices,
+  fiscalCredits,
+  onAddFiscalCredit,
+  onDeleteFiscalCredit,
+}) {
+  const [selectedTaxMonth, setSelectedTaxMonth] = useState(currentMonth);
+
+  const monthlyInvoices = invoices.filter((invoice) => invoice.date?.startsWith(selectedTaxMonth));
+  const monthlyBilledTotal = sumAmounts(monthlyInvoices);
+  const fiscalDebit = calculateIncludedVat(monthlyBilledTotal);
+  const monthCredits = fiscalCredits.filter((credit) => credit.month === selectedTaxMonth);
+  const fiscalCredit = sumAmounts(monthCredits);
+  const vatToPay = fiscalDebit - fiscalCredit;
+
+  const addCredit = (values) => onAddFiscalCredit(selectedTaxMonth, values);
+
+  return (
+    <main className="layout-stack">
+      <section className="panel iva-panel">
+        <div className="panel-header iva-header">
+          <div>
+            <p className="eyebrow">Liquidacion mensual</p>
+            <h2>IVA</h2>
+          </div>
+          <label className="month-control">
+            Mes
+            <input
+              type="month"
+              value={selectedTaxMonth}
+              onChange={(event) => setSelectedTaxMonth(event.target.value)}
+            />
+          </label>
+        </div>
+      </section>
+
+      <section className="metrics-grid">
+        <MetricCard label="Debito fiscal" value={formatCurrency(fiscalDebit)} detail="IVA incluido en ventas" tone="green" />
+        <MetricCard label="Credito fiscal" value={formatCurrency(fiscalCredit)} detail="Facturas cargadas" tone="gold" />
+        <MetricCard label="IVA a pagar" value={formatCurrency(vatToPay)} detail={`Periodo ${formatMonth(selectedTaxMonth)}`} tone="orange" />
+        <MetricCard label="Facturado del mes" value={formatCurrency(monthlyBilledTotal)} detail={`${monthlyInvoices.length} facturas`} tone="sand" />
+      </section>
+
+      <section className="panel iva-credit-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Credito fiscal</p>
+            <h2>Cargar factura</h2>
+          </div>
+          <span className="badge">{monthCredits.length} cargadas</span>
+        </div>
+
+        <FiscalCreditForm onSubmit={addCredit} />
+
+        <div className="credit-list">
+          {monthCredits.length ? (
+            monthCredits.map((credit) => (
+              <div className="credit-row" key={credit.id}>
+                <strong>Credito fiscal</strong>
+                <span>{formatCurrency(credit.amount)}</span>
+                <button className="ghost-button danger compact-action" type="button" onClick={() => onDeleteFiscalCredit(credit.id)}>
+                  Eliminar
+                </button>
+              </div>
+            ))
+          ) : (
+            <EmptyState title="Sin credito fiscal" message="Carga importes para restarlos del debito fiscal del mes." />
+          )}
+        </div>
+      </section>
+    </main>
+  );
+}
+
 function ClientForm({ initialName = "", submitLabel = "Crear cliente", onSubmit, onCancel }) {
   const [name, setName] = useState(initialName);
   const [error, setError] = useState("");
@@ -1044,6 +1156,48 @@ function TripForm({ clients, onSubmit }) {
   );
 }
 
+function FiscalCreditForm({ onSubmit }) {
+  const [formValues, setFormValues] = useState(blankFiscalCredit);
+  const [error, setError] = useState("");
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+
+    if (!onSubmit(formValues)) {
+      setError("Carga un importe valido.");
+      return;
+    }
+
+    setFormValues(blankFiscalCredit);
+    setError("");
+  };
+
+  return (
+    <form className="entry-form fiscal-credit-form" onSubmit={handleSubmit}>
+      <label>
+        Importe
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          required
+          value={formValues.amount}
+          onChange={(event) => {
+            setFormValues({ amount: event.target.value });
+            setError("");
+          }}
+          placeholder="250000"
+        />
+      </label>
+
+      <button className="primary-button" type="submit">
+        Agregar credito
+      </button>
+      {error ? <p className="form-error">{error}</p> : null}
+    </form>
+  );
+}
+
 function DonutChart({ items, centerLabel, centerValue, centerDetail }) {
   const total = items.reduce((sum, item) => sum + Number(item.value || 0), 0);
 
@@ -1166,6 +1320,7 @@ function mergeAppState(defaultValue, storedValue) {
     clients: Array.isArray(storedValue.clients) ? storedValue.clients : defaultValue.clients,
     invoices: Array.isArray(storedValue.invoices) ? storedValue.invoices : defaultValue.invoices,
     unbilledTrips: Array.isArray(storedValue.unbilledTrips) ? storedValue.unbilledTrips : defaultValue.unbilledTrips,
+    fiscalCredits: Array.isArray(storedValue.fiscalCredits) ? storedValue.fiscalCredits : defaultValue.fiscalCredits,
   };
 }
 
