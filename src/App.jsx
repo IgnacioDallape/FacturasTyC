@@ -4,6 +4,7 @@ import { isSupabaseConfigured, loadRemoteState, saveRemoteState } from "./lib/su
 const STORAGE_KEY = "remitos-facturas-state-v1";
 const ARS_PER_USD = 1100;
 const IVA_RATE = 0.21;
+const IVA_TOTAL_RATE = 1 + IVA_RATE;
 
 const today = new Date();
 const currentMonth = today.toISOString().slice(0, 7);
@@ -118,7 +119,7 @@ function App() {
           ...client,
           totalDue: sumAmounts(unpaidInvoices),
           monthTotal: sumAmounts(monthlyInvoices),
-          monthVat: sumAmounts(monthlyInvoices) * IVA_RATE,
+          monthVat: calculateIncludedVat(sumAmounts(monthlyInvoices)),
           pendingCount: overdueInvoices.length,
           totalInvoices: clientInvoices.length,
         };
@@ -347,7 +348,7 @@ function DashboardView({
         <MetricCard
           label="IVA estimado"
           value={formatCurrency(totalMonthlyVat)}
-          detail={`${formatPercent(IVA_RATE)} sobre lo facturado del mes`}
+          detail={`${formatPercent(IVA_RATE)} incluido en lo facturado`}
           tone="sand"
         />
         <MetricCard
@@ -496,7 +497,7 @@ function ClientsView({
         {clients.map((client) => {
           const clientInvoices = invoices.filter((invoice) => invoice.clientId === client.id);
           const monthlyTotal = sumAmounts(clientInvoices.filter((invoice) => invoice.date?.startsWith(selectedMonth)));
-          const monthlyVat = monthlyTotal * IVA_RATE;
+          const monthlyVat = calculateIncludedVat(monthlyTotal);
           const unpaidInvoices = clientInvoices.filter((invoice) => !invoice.paid);
           const overdueInvoices = unpaidInvoices.filter(isOverdueInvoice);
           const overdueTotal = sumAmounts(overdueInvoices);
@@ -1191,6 +1192,10 @@ function normalizeTrip(values) {
 
 function sumAmounts(items) {
   return items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+}
+
+function calculateIncludedVat(totalWithVat) {
+  return (Number(totalWithVat || 0) * IVA_RATE) / IVA_TOTAL_RATE;
 }
 
 function isOverdueInvoice(invoice) {
