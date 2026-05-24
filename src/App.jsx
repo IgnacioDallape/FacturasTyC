@@ -185,6 +185,23 @@ function App() {
     return clientId;
   };
 
+  const updateClientName = (clientId, name) => {
+    const trimmedName = name.trim();
+    const repeatedClient = clients.some(
+      (client) => client.id !== clientId && client.name.toLowerCase() === trimmedName.toLowerCase(),
+    );
+    if (!trimmedName || repeatedClient) return false;
+
+    setAppState((current) => ({
+      ...current,
+      clients: current.clients.map((client) =>
+        client.id === clientId ? { ...client, name: trimmedName } : client,
+      ),
+    }));
+
+    return true;
+  };
+
   const addInvoice = (clientId, values) => {
     const normalized = normalizeInvoice(values);
     if (!normalized.invoiceNumber || !normalized.amount) return false;
@@ -287,6 +304,7 @@ function App() {
           invoices={invoices}
           selectedMonth={selectedMonth}
           onAddClient={addClient}
+          onUpdateClientName={updateClientName}
           onAddInvoice={addInvoice}
           onToggleInvoicePaid={toggleInvoicePaid}
           onDeleteInvoice={deleteInvoice}
@@ -402,12 +420,14 @@ function ClientsView({
   invoices,
   selectedMonth,
   onAddClient,
+  onUpdateClientName,
   onAddInvoice,
   onToggleInvoicePaid,
   onDeleteInvoice,
 }) {
   const [showClientForm, setShowClientForm] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [editingClient, setEditingClient] = useState(null);
   const [expandedClientId, setExpandedClientId] = useState("");
 
   const createClient = (name) => {
@@ -416,6 +436,15 @@ function ClientsView({
 
     setExpandedClientId(clientId);
     setShowClientForm(false);
+    return true;
+  };
+
+  const renameClient = (name) => {
+    if (!editingClient) return false;
+    const wasUpdated = onUpdateClientName(editingClient.id, name);
+    if (!wasUpdated) return false;
+
+    setEditingClient(null);
     return true;
   };
 
@@ -452,6 +481,17 @@ function ClientsView({
         </FormModal>
       ) : null}
 
+      {editingClient ? (
+        <FormModal title="Editar cliente" onClose={() => setEditingClient(null)}>
+          <ClientForm
+            initialName={editingClient.name}
+            submitLabel="Guardar cambios"
+            onSubmit={renameClient}
+            onCancel={() => setEditingClient(null)}
+          />
+        </FormModal>
+      ) : null}
+
       <section className="client-list">
         {clients.map((client) => {
           const clientInvoices = invoices.filter((invoice) => invoice.clientId === client.id);
@@ -475,6 +515,17 @@ function ClientsView({
                 <div className="client-name">
                   <h2>{client.name}</h2>
                 </div>
+                <button
+                  className="ghost-button compact-action"
+                  type="button"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setEditingClient(client);
+                  }}
+                >
+                  Editar
+                </button>
                 <SummaryMetric label="Total vencido" value={formatCurrency(overdueTotal)} />
                 <span className={`status-pill ${overdueCount ? "warning" : hasOpenInvoices ? "soft" : "ok"}`}>
                   {overdueCount ? `${overdueCount} vencidas` : hasOpenInvoices ? "En termino" : "Al dia"}
@@ -674,15 +725,15 @@ function TripsView({
   );
 }
 
-function ClientForm({ onSubmit, onCancel }) {
-  const [name, setName] = useState("");
+function ClientForm({ initialName = "", submitLabel = "Crear cliente", onSubmit, onCancel }) {
+  const [name, setName] = useState(initialName);
   const [error, setError] = useState("");
 
   const handleSubmit = (event) => {
     event.preventDefault();
 
     if (!onSubmit(name)) {
-      setError("Escribi un cliente nuevo para agregarlo.");
+      setError("Escribi un nombre valido y que no este repetido.");
       return;
     }
 
@@ -693,7 +744,7 @@ function ClientForm({ onSubmit, onCancel }) {
   return (
     <form className="client-create-form" onSubmit={handleSubmit}>
       <label htmlFor="new-client">
-        Nuevo cliente
+        Nombre del cliente
         <input
           id="new-client"
           required
@@ -706,7 +757,7 @@ function ClientForm({ onSubmit, onCancel }) {
         />
       </label>
       <button className="primary-button" type="submit">
-        Crear cliente
+        {submitLabel}
       </button>
       <button className="ghost-button" type="button" onClick={onCancel}>
         Cancelar

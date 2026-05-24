@@ -603,7 +603,7 @@ h2 {
 
 .client-summary {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(130px, auto) auto 22px;
+  grid-template-columns: minmax(150px, 1fr) auto minmax(130px, auto) auto 22px;
   gap: 12px;
   align-items: center;
   min-height: 66px;
@@ -612,6 +612,10 @@ h2 {
   list-style: none;
   touch-action: manipulation;
   transition: background-color 180ms ease, transform 140ms ease;
+}
+
+.client-summary:not(:has(.compact-action)) {
+  grid-template-columns: minmax(150px, 1fr) minmax(130px, auto) auto 22px;
 }
 
 .client-summary::-webkit-details-marker {
@@ -642,6 +646,12 @@ h2 {
 
 .summary-metric strong {
   font-size: 1rem;
+}
+
+.compact-action {
+  min-height: 32px;
+  padding: 0.42rem 0.72rem;
+  font-size: 0.74rem;
 }
 
 .disclosure-arrow {
@@ -1050,6 +1060,10 @@ textarea:focus {
     min-height: 74px;
     padding-top: 14px;
     padding-bottom: 14px;
+  }
+
+  .client-summary .compact-action {
+    justify-self: end;
   }
 
   .client-summary .status-pill {
