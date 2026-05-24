@@ -484,7 +484,7 @@ h2 {
 
 .clients-actions {
   display: grid;
-  justify-items: stretch;
+  justify-items: center;
 }
 
 .client-create-form {
@@ -508,7 +508,7 @@ h2 {
   grid-template-columns: minmax(220px, 0.42fr) minmax(320px, 0.58fr);
   gap: 14px;
   width: min(920px, 100%);
-  justify-self: end;
+  justify-self: center;
   align-items: stretch;
   padding: 8px;
   border: 1px solid rgba(126, 100, 47, 0.14);
@@ -529,7 +529,7 @@ h2 {
 
 .global-invoice-form {
   min-width: 0;
-  background: rgba(255, 252, 244, 0.72);
+  background: linear-gradient(135deg, #a98f5b, #cfb879);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.44);
 }
 
@@ -634,8 +634,8 @@ h2 {
 .invoice-form-toggle {
   overflow: hidden;
   border-radius: var(--radius-md);
-  background: rgba(241, 226, 195, 0.44);
-  border: 1px solid var(--line);
+  background: linear-gradient(135deg, #a98f5b, #cfb879);
+  border: 1px solid rgba(101, 78, 35, 0.12);
 }
 
 .invoice-form-toggle > summary {
@@ -645,7 +645,7 @@ h2 {
   justify-content: space-between;
   gap: 12px;
   padding: 0 18px;
-  color: var(--text);
+  color: #fffdf8;
   cursor: pointer;
   font-size: 0.76rem;
   font-weight: 800;
@@ -656,8 +656,12 @@ h2 {
   transition: background-color 180ms ease;
 }
 
+.invoice-form-toggle > summary .disclosure-arrow {
+  border-color: rgba(255, 253, 248, 0.88);
+}
+
 .invoice-form-toggle > summary:hover {
-  background: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .invoice-form-toggle > summary::-webkit-details-marker {
