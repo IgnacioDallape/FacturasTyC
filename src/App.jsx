@@ -407,6 +407,7 @@ function ClientsView({
   onDeleteInvoice,
 }) {
   const [showClientForm, setShowClientForm] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [expandedClientId, setExpandedClientId] = useState("");
 
   const createClient = (name) => {
@@ -423,6 +424,7 @@ function ClientsView({
     if (!wasCreated) return false;
 
     setExpandedClientId(clientId);
+    setShowInvoiceModal(false);
     return true;
   };
 
@@ -438,15 +440,17 @@ function ClientsView({
             <ClientForm onSubmit={createClient} onCancel={() => setShowClientForm(false)} />
           )}
 
-          <details className="invoice-form-toggle global-invoice-form">
-            <summary>
-              <span>Agregar factura</span>
-              <span className="disclosure-arrow small" aria-hidden="true" />
-            </summary>
-            <InvoiceForm clients={clients} onSubmit={createInvoice} />
-          </details>
+          <button className="primary-button" type="button" onClick={() => setShowInvoiceModal(true)}>
+            Agregar factura
+          </button>
         </div>
       </section>
+
+      {showInvoiceModal ? (
+        <FormModal title="Agregar factura" onClose={() => setShowInvoiceModal(false)}>
+          <InvoiceForm clients={clients} onSubmit={createInvoice} />
+        </FormModal>
+      ) : null}
 
       <section className="client-list">
         {clients.map((client) => {
@@ -546,7 +550,16 @@ function TripsView({
   const clientsWithOpenTrips = clients.filter((client) =>
     openTrips.some((trip) => trip.clientId === client.id),
   );
+  const [showTripModal, setShowTripModal] = useState(false);
   const [expandedClientId, setExpandedClientId] = useState("");
+
+  const createTrip = (values) => {
+    const wasCreated = onAddTrip(values);
+    if (!wasCreated) return false;
+
+    setShowTripModal(false);
+    return true;
+  };
 
   return (
     <main className="layout-stack">
@@ -562,15 +575,17 @@ function TripsView({
 
       <section className="clients-actions">
         <div className="clients-action-stack single-action-stack">
-          <details className="invoice-form-toggle global-invoice-form">
-            <summary>
-              <span>Agregar viaje no facturado</span>
-              <span className="disclosure-arrow small" aria-hidden="true" />
-            </summary>
-            <TripForm clients={clients} onSubmit={onAddTrip} />
-          </details>
+          <button className="primary-button" type="button" onClick={() => setShowTripModal(true)}>
+            Agregar viaje no facturado
+          </button>
         </div>
       </section>
+
+      {showTripModal ? (
+        <FormModal title="Agregar viaje no facturado" onClose={() => setShowTripModal(false)}>
+          <TripForm clients={clients} onSubmit={createTrip} />
+        </FormModal>
+      ) : null}
 
       <section className="client-list">
         {clientsWithOpenTrips.length ? clientsWithOpenTrips.map((client) => {
@@ -698,6 +713,39 @@ function ClientForm({ onSubmit, onCancel }) {
       </button>
       {error ? <p className="form-error">{error}</p> : null}
     </form>
+  );
+}
+
+function FormModal({ title, children, onClose }) {
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="modal-backdrop" onMouseDown={onClose}>
+      <section
+        className="form-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="modal-header">
+          <h2>{title}</h2>
+          <button className="ghost-button modal-close" type="button" onClick={onClose}>
+            Cerrar
+          </button>
+        </div>
+        {children}
+      </section>
+    </div>
   );
 }
 

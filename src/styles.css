@@ -203,7 +203,6 @@ h2 {
 
 .segmented button:active,
 .client-summary:active,
-.invoice-form-toggle > summary:active,
 .invoice-row summary:active,
 .primary-button:active,
 .ghost-button:active {
@@ -532,14 +531,62 @@ h2 {
   width: min(920px, 100%);
 }
 
-.global-invoice-form {
-  min-width: 0;
-  background: linear-gradient(135deg, #a98f5b, #cfb879);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.44);
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(68, 51, 30, 0.22);
+  backdrop-filter: blur(10px);
 }
 
-.global-invoice-form .entry-form {
-  grid-template-columns: 1fr 1fr 0.85fr 0.85fr 1fr auto auto;
+.form-modal {
+  width: min(760px, 100%);
+  max-height: min(86vh, 720px);
+  overflow: auto;
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: var(--radius-xl);
+  background:
+    linear-gradient(135deg, rgba(249, 239, 216, 0.98), rgba(239, 225, 190, 0.96));
+  box-shadow: 0 32px 80px rgba(68, 51, 30, 0.22);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 4px 0;
+}
+
+.modal-header h2 {
+  font-size: 1.7rem;
+}
+
+.modal-close {
+  min-height: 36px;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.8rem;
+}
+
+.form-modal .entry-form,
+.form-modal .trip-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 251, 242, 0.55);
+}
+
+.form-modal .checkbox-line,
+.form-modal .primary-button,
+.form-modal .form-error {
+  grid-column: 1 / -1;
 }
 
 .client-list {
@@ -634,51 +681,6 @@ h2 {
 
 .stat-box strong {
   font-size: 1.08rem;
-}
-
-.invoice-form-toggle {
-  overflow: hidden;
-  border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #a98f5b, #cfb879);
-  border: 1px solid rgba(101, 78, 35, 0.12);
-}
-
-.invoice-form-toggle > summary {
-  display: flex;
-  min-height: 54px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 0 18px;
-  color: #fffdf8;
-  cursor: pointer;
-  font-size: 0.76rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  list-style: none;
-  touch-action: manipulation;
-  text-transform: uppercase;
-  transition: background-color 180ms ease;
-}
-
-.invoice-form-toggle > summary .disclosure-arrow {
-  border-color: rgba(255, 253, 248, 0.88);
-}
-
-.invoice-form-toggle > summary:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.invoice-form-toggle > summary::-webkit-details-marker {
-  display: none;
-}
-
-.invoice-form-toggle[open] > summary {
-  border-bottom: 1px solid var(--line);
-}
-
-.invoice-form-toggle[open] .disclosure-arrow.small {
-  transform: rotate(225deg) translate(-1px, -1px);
 }
 
 .disclosure-arrow.small {
@@ -918,7 +920,6 @@ textarea:focus {
 
   .entry-form,
   .trip-form,
-  .global-invoice-form .entry-form,
   .client-create-form,
   .trip-row {
     grid-template-columns: 1fr;
@@ -1011,8 +1012,30 @@ textarea:focus {
   }
 
   .clients-action-stack > .primary-button,
-  .invoice-form-toggle > summary {
+  .clients-action-stack .primary-button {
     min-height: 50px;
+  }
+
+  .modal-backdrop {
+    padding: 12px;
+    align-items: end;
+  }
+
+  .form-modal {
+    width: 100%;
+    max-height: 92vh;
+    padding: 14px;
+    border-radius: 22px;
+  }
+
+  .modal-header h2 {
+    font-size: 1.35rem;
+  }
+
+  .form-modal .entry-form,
+  .form-modal .trip-form {
+    grid-template-columns: 1fr;
+    padding: 14px;
   }
 
   .client-summary,
