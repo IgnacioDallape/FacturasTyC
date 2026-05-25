@@ -150,8 +150,8 @@ function App() {
   );
 
   const unbilledTripsAmount = useMemo(
-    () => sumAmounts(unbilledPendingTrips),
-    [unbilledPendingTrips],
+    () => sumTripBillableAmounts(unbilledPendingTrips, clientsById),
+    [clientsById, unbilledPendingTrips],
   );
 
   const totalMonthlyVat = useMemo(
@@ -393,7 +393,7 @@ function DashboardView({
         <MetricCard
           label="Monto no facturado"
           value={formatCurrency(unbilledTripsAmount)}
-          detail="Viajes realizados pendientes"
+          detail="Con IVA salvo Varios"
           tone="orange"
         />
         <MetricCard label="Viajes no facturados" value={String(pendingTrips.length)} detail="Listos para revisar" tone="slate" />
@@ -698,7 +698,7 @@ function TripsView({
         {clientsWithOpenTrips.length ? clientsWithOpenTrips.map((client) => {
           const clientTrips = unbilledTrips.filter((trip) => trip.clientId === client.id);
           const unbilledClientTrips = clientTrips.filter((trip) => !trip.billed);
-          const totalUnbilled = sumAmounts(unbilledClientTrips);
+          const totalUnbilled = sumTripBillableAmounts(unbilledClientTrips, { [client.id]: client });
           const pending = unbilledClientTrips.length;
 
           return (
@@ -713,7 +713,7 @@ function TripsView({
                 <div className="client-name">
                   <h2>{client.name}</h2>
                 </div>
-                <SummaryMetric label="Total no facturado" value={formatCurrency(totalUnbilled)} />
+                <SummaryMetric label="Total a facturar" value={formatCurrency(totalUnbilled)} />
                 <span className={`status-pill ${pending ? "warning" : "ok"}`}>
                   {pending ? `${pending} viajes` : "Al dia"}
                 </span>
@@ -722,48 +722,52 @@ function TripsView({
 
               <div className="client-details">
                 <div className="mini-stats">
-                  <StatBox label="Total no facturado" value={formatCurrency(totalUnbilled)} />
+                  <StatBox label="Total a facturar" value={formatCurrency(totalUnbilled)} />
                   <StatBox label="Viajes pendientes" value={String(pending)} />
                 </div>
 
                 <div className="trip-list">
                   {clientTrips.length ? (
-                    clientTrips.map((trip) => (
-                      <details className={`invoice-row ${trip.billed ? "is-paid" : ""}`} key={trip.id}>
-                        <summary>
-                          <span>
-                            <small>Trayecto</small>
-                            <strong>{trip.route}</strong>
-                          </span>
-                          <span>
-                            <small>Fecha</small>
-                            <strong>{formatDate(trip.date)}</strong>
-                          </span>
-                          <span>
-                            <small>Monto</small>
-                            <strong>{formatCurrency(trip.amount)}</strong>
-                          </span>
-                          <span className="disclosure-arrow small" aria-hidden="true" />
-                        </summary>
-                        <div className="invoice-row-details">
-                          <div className="trip-detail-copy">
-                            {isMiscClient(client) && trip.customerName ? <p className="invoice-customer">{trip.customerName}</p> : null}
-                            {trip.note ? <p className="trip-note">{trip.note}</p> : null}
+                    clientTrips.map((trip) => {
+                      const tripBillableAmount = getTripBillableAmount(trip, client);
+
+                      return (
+                        <details className={`invoice-row ${trip.billed ? "is-paid" : ""}`} key={trip.id}>
+                          <summary>
+                            <span>
+                              <small>Trayecto</small>
+                              <strong>{trip.route}</strong>
+                            </span>
+                            <span>
+                              <small>Fecha</small>
+                              <strong>{formatDate(trip.date)}</strong>
+                            </span>
+                            <span>
+                              <small>{isMiscClient(client) ? "Monto" : "Monto c/IVA"}</small>
+                              <strong>{formatCurrency(tripBillableAmount)}</strong>
+                            </span>
+                            <span className="disclosure-arrow small" aria-hidden="true" />
+                          </summary>
+                          <div className="invoice-row-details">
+                            <div className="trip-detail-copy">
+                              {isMiscClient(client) && trip.customerName ? <p className="invoice-customer">{trip.customerName}</p> : null}
+                              {trip.note ? <p className="trip-note">{trip.note}</p> : null}
+                            </div>
+                            <span className={`status-pill ${trip.billed ? "ok" : "warning"}`}>
+                              {trip.billed ? "Facturado" : "No facturado"}
+                            </span>
+                            <div className="row-actions">
+                              <button className="ghost-button" type="button" onClick={() => onToggleTripBilled(trip.id)}>
+                                {trip.billed ? "Reabrir" : "Marcar facturado"}
+                              </button>
+                              <button className="ghost-button danger" type="button" onClick={() => onDeleteTrip(trip.id)}>
+                                Eliminar
+                              </button>
+                            </div>
                           </div>
-                          <span className={`status-pill ${trip.billed ? "ok" : "warning"}`}>
-                            {trip.billed ? "Facturado" : "No facturado"}
-                          </span>
-                          <div className="row-actions">
-                            <button className="ghost-button" type="button" onClick={() => onToggleTripBilled(trip.id)}>
-                              {trip.billed ? "Reabrir" : "Marcar facturado"}
-                            </button>
-                            <button className="ghost-button danger" type="button" onClick={() => onDeleteTrip(trip.id)}>
-                              Eliminar
-                            </button>
-                          </div>
-                        </div>
-                      </details>
-                    ))
+                        </details>
+                      );
+                    })
                   ) : (
                     <EmptyState title="Sin viajes" message="Carga el primer viaje pendiente de este cliente." />
                   )}
@@ -1190,7 +1194,7 @@ function TripForm({ clients, onSubmit }) {
       </label>
 
       <label>
-        Valor estimado
+        {isMiscClient(selectedClient) ? "Valor" : "Valor sin IVA"}
         <input
           type="number"
           min="0"
@@ -1425,6 +1429,15 @@ function normalizeTrip(values) {
 
 function sumAmounts(items) {
   return items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+}
+
+function getTripBillableAmount(trip, client) {
+  const amount = Number(trip.amount || 0);
+  return isMiscClient(client) ? amount : amount * IVA_TOTAL_RATE;
+}
+
+function sumTripBillableAmounts(trips, clientsById) {
+  return trips.reduce((sum, trip) => sum + getTripBillableAmount(trip, clientsById[trip.clientId]), 0);
 }
 
 function calculateIncludedVat(totalWithVat) {
