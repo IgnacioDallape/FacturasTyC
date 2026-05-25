@@ -5,6 +5,15 @@ const STORAGE_KEY = "remitos-facturas-state-v1";
 const ARS_PER_USD = 1100;
 const IVA_RATE = 0.21;
 const IVA_TOTAL_RATE = 1 + IVA_RATE;
+const TRIP_RATE_ORIGINS = [
+  { key: "mendoza", label: "Desde Mza" },
+  { key: "sanJuan", label: "Desde San Juan" },
+];
+const POSITION_RANGES = [
+  { key: "positions1To6", label: "1 a 6 posiciones" },
+  { key: "positions7To11", label: "7 a 11 posiciones" },
+  { key: "positions12To15", label: "12 a 15 posiciones" },
+];
 
 const today = new Date();
 const currentMonth = today.toISOString().slice(0, 7);
@@ -186,6 +195,7 @@ function App() {
           id: clientId,
           name: trimmedName,
           isMisc: isMiscClient({ name: trimmedName }),
+          tripRates: buildEmptyTripRates(),
         },
       ],
     }));
@@ -193,8 +203,8 @@ function App() {
     return clientId;
   };
 
-  const updateClientName = (clientId, name) => {
-    const trimmedName = name.trim();
+  const updateClient = (clientId, values) => {
+    const trimmedName = values.name.trim();
     const repeatedClient = clients.some(
       (client) => client.id !== clientId && client.name.toLowerCase() === trimmedName.toLowerCase(),
     );
@@ -203,7 +213,14 @@ function App() {
     setAppState((current) => ({
       ...current,
       clients: current.clients.map((client) =>
-        client.id === clientId ? { ...client, name: trimmedName, isMisc: isMiscClient({ name: trimmedName }) } : client,
+        client.id === clientId
+          ? {
+              ...client,
+              name: trimmedName,
+              isMisc: isMiscClient({ name: trimmedName }),
+              tripRates: normalizeTripRates(values.tripRates),
+            }
+          : client,
       ),
     }));
 
@@ -337,7 +354,7 @@ function App() {
           invoices={invoices}
           selectedMonth={selectedMonth}
           onAddClient={addClient}
-          onUpdateClientName={updateClientName}
+          onUpdateClient={updateClient}
           onAddInvoice={addInvoice}
           onToggleInvoicePaid={toggleInvoicePaid}
           onDeleteInvoice={deleteInvoice}
@@ -465,7 +482,7 @@ function ClientsView({
   invoices,
   selectedMonth,
   onAddClient,
-  onUpdateClientName,
+  onUpdateClient,
   onAddInvoice,
   onToggleInvoicePaid,
   onDeleteInvoice,
@@ -475,8 +492,8 @@ function ClientsView({
   const [editingClient, setEditingClient] = useState(null);
   const [expandedClientId, setExpandedClientId] = useState("");
 
-  const createClient = (name) => {
-    const clientId = onAddClient(name);
+  const createClient = (values) => {
+    const clientId = onAddClient(values.name);
     if (!clientId) return false;
 
     setExpandedClientId(clientId);
@@ -484,9 +501,9 @@ function ClientsView({
     return true;
   };
 
-  const renameClient = (name) => {
+  const updateClient = (values) => {
     if (!editingClient) return false;
-    const wasUpdated = onUpdateClientName(editingClient.id, name);
+    const wasUpdated = onUpdateClient(editingClient.id, values);
     if (!wasUpdated) return false;
 
     setEditingClient(null);
@@ -532,8 +549,10 @@ function ClientsView({
         <FormModal title="Editar cliente" onClose={() => setEditingClient(null)}>
           <ClientForm
             initialName={editingClient.name}
+            initialTripRates={editingClient.tripRates}
+            showTripRates
             submitLabel="Guardar cambios"
-            onSubmit={renameClient}
+            onSubmit={updateClient}
             onCancel={() => setEditingClient(null)}
           />
         </FormModal>
@@ -859,24 +878,43 @@ function IvaView({
   );
 }
 
-function ClientForm({ initialName = "", submitLabel = "Crear cliente", onSubmit, onCancel }) {
+function ClientForm({
+  initialName = "",
+  initialTripRates,
+  showTripRates = false,
+  submitLabel = "Crear cliente",
+  onSubmit,
+  onCancel,
+}) {
   const [name, setName] = useState(initialName);
+  const [tripRates, setTripRates] = useState(() => hydrateTripRates(initialTripRates));
   const [error, setError] = useState("");
+
+  const updateTripRate = (originKey, rangeKey, value) => {
+    setTripRates((current) => ({
+      ...current,
+      [originKey]: {
+        ...current[originKey],
+        [rangeKey]: value,
+      },
+    }));
+  };
 
   const handleSubmit = (event) => {
     event.preventDefault();
 
-    if (!onSubmit(name)) {
+    if (!onSubmit({ name, tripRates })) {
       setError("Escribi un nombre valido y que no este repetido.");
       return;
     }
 
     setName("");
+    setTripRates(buildEmptyTripRates());
     setError("");
   };
 
   return (
-    <form className="client-create-form" onSubmit={handleSubmit}>
+    <form className={`client-create-form ${showTripRates ? "with-trip-rates" : ""}`} onSubmit={handleSubmit}>
       <label htmlFor="new-client">
         Nombre del cliente
         <input
@@ -890,6 +928,37 @@ function ClientForm({ initialName = "", submitLabel = "Crear cliente", onSubmit,
           placeholder="Nombre del cliente"
         />
       </label>
+
+      {showTripRates ? (
+        <section className="trip-rates-editor">
+          <div className="trip-rates-header">
+            <h3>Tarifas por viaje</h3>
+            <p>Importes base para viajes desde Mendoza o San Juan.</p>
+          </div>
+
+          <div className="trip-rates-grid">
+            {TRIP_RATE_ORIGINS.map((origin) => (
+              <article className="trip-rate-block" key={origin.key}>
+                <h4>{origin.label}</h4>
+                {POSITION_RANGES.map((range) => (
+                  <label key={range.key}>
+                    {range.label}
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={tripRates[origin.key]?.[range.key] || ""}
+                      onChange={(event) => updateTripRate(origin.key, range.key, event.target.value)}
+                      placeholder="0"
+                    />
+                  </label>
+                ))}
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <button className="primary-button" type="submit">
         {submitLabel}
       </button>
@@ -1425,6 +1494,47 @@ function normalizeTrip(values) {
     amount: Number(values.amount || 0),
     note: values.note?.trim() || "",
   };
+}
+
+function buildEmptyTripRates() {
+  return Object.fromEntries(
+    TRIP_RATE_ORIGINS.map((origin) => [
+      origin.key,
+      Object.fromEntries(POSITION_RANGES.map((range) => [range.key, ""])),
+    ]),
+  );
+}
+
+function hydrateTripRates(rates) {
+  const emptyRates = buildEmptyTripRates();
+
+  return Object.fromEntries(
+    TRIP_RATE_ORIGINS.map((origin) => [
+      origin.key,
+      Object.fromEntries(
+        POSITION_RANGES.map((range) => [
+          range.key,
+          rates?.[origin.key]?.[range.key] ?? emptyRates[origin.key][range.key],
+        ]),
+      ),
+    ]),
+  );
+}
+
+function normalizeTripRates(rates) {
+  const hydratedRates = hydrateTripRates(rates);
+
+  return Object.fromEntries(
+    TRIP_RATE_ORIGINS.map((origin) => [
+      origin.key,
+      Object.fromEntries(
+        POSITION_RANGES.map((range) => {
+          const amount = Number(hydratedRates[origin.key][range.key] || 0);
+          return [range.key, amount > 0 ? amount : ""];
+        }),
+      ),
+    ]),
+  );
 }
 
 function sumAmounts(items) {

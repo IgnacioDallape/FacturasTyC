@@ -515,6 +515,60 @@ h2 {
   font-weight: 700;
 }
 
+.client-create-form.with-trip-rates {
+  grid-template-columns: 1fr;
+  width: 100%;
+}
+
+.client-create-form.with-trip-rates .primary-button,
+.client-create-form.with-trip-rates .ghost-button,
+.client-create-form.with-trip-rates .form-error {
+  grid-column: auto;
+}
+
+.trip-rates-editor {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 251, 242, 0.48);
+}
+
+.trip-rates-header {
+  display: grid;
+  gap: 4px;
+}
+
+.trip-rates-header h3,
+.trip-rate-block h4 {
+  margin: 0;
+}
+
+.trip-rates-header p {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.trip-rates-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.trip-rate-block {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(126, 100, 47, 0.16);
+  border-radius: var(--radius-md);
+  background: rgba(255, 252, 245, 0.62);
+}
+
+.trip-rate-block label {
+  gap: 7px;
+}
+
 .clients-action-stack {
   display: grid;
   grid-template-columns: minmax(220px, 0.42fr) minmax(320px, 0.58fr);
@@ -1081,6 +1135,7 @@ textarea:focus {
   .trip-form,
   .fiscal-credit-form,
   .client-create-form,
+  .trip-rates-grid,
   .trip-row {
     grid-template-columns: 1fr;
   }
