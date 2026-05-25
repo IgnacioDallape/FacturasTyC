@@ -444,6 +444,12 @@ function DashboardView({
                 centerValue={formatUsdFromArs(totalUnpaid)}
                 centerDetail={`Dolar ${formatCurrency(ARS_PER_USD)}`}
               />
+              <div className="receivables-kpis">
+                <StatBox label="Pendiente de cobro" value={formatCurrency(totalUnpaid)} />
+                <StatBox label="No facturado" value={formatCurrency(unbilledTripsAmount)} />
+                <StatBox label="Clientes con deuda" value={String(pendingClients.length)} />
+                <StatBox label="Viajes pendientes" value={String(pendingTrips.length)} />
+              </div>
             </div>
 
             <div className="client-breakdown">
