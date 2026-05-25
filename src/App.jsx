@@ -440,6 +440,11 @@ function DashboardView({
                       <strong>{formatCurrency(client.totalDue)}</strong>
                     </div>
                   ))}
+
+                  <div className="breakdown-row breakdown-total">
+                    <strong>Total</strong>
+                    <strong>{formatCurrency(totalUnpaid)}</strong>
+                  </div>
                 </div>
               ) : (
                 <EmptyState

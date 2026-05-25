@@ -442,6 +442,12 @@ h2 {
   border-top: 1px solid var(--line);
 }
 
+.breakdown-total {
+  background: linear-gradient(135deg, rgba(190, 164, 109, 0.24), rgba(255, 252, 245, 0.72));
+  color: var(--text);
+  font-size: 1.02rem;
+}
+
 .breakdown-row span {
   color: var(--text-soft);
 }
