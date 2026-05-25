@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { isSupabaseConfigured, loadRemoteState, saveRemoteState } from "./lib/supabase";
 
 const STORAGE_KEY = "remitos-facturas-state-v1";
@@ -185,7 +185,7 @@ function App() {
         {
           id: clientId,
           name: trimmedName,
-          isMisc: false,
+          isMisc: isMiscClient({ name: trimmedName }),
         },
       ],
     }));
@@ -203,7 +203,7 @@ function App() {
     setAppState((current) => ({
       ...current,
       clients: current.clients.map((client) =>
-        client.id === clientId ? { ...client, name: trimmedName } : client,
+        client.id === clientId ? { ...client, name: trimmedName, isMisc: isMiscClient({ name: trimmedName }) } : client,
       ),
     }));
 
@@ -604,9 +604,9 @@ function ClientsView({
                           <span className="disclosure-arrow small" aria-hidden="true" />
                         </summary>
                         <div className="invoice-row-details">
-                          {(client.isMisc && invoice.customerName) || invoice.cargoNumber ? (
+                          {(isMiscClient(client) && invoice.customerName) || invoice.cargoNumber ? (
                             <div className="invoice-detail-copy">
-                              {client.isMisc && invoice.customerName ? (
+                              {isMiscClient(client) && invoice.customerName ? (
                                 <p className="invoice-customer">{invoice.customerName}</p>
                               ) : null}
                               {invoice.cargoNumber ? (
@@ -742,7 +742,7 @@ function TripsView({
                         </summary>
                         <div className="invoice-row-details">
                           <div className="trip-detail-copy">
-                            {client.isMisc && trip.customerName ? <p className="invoice-customer">{trip.customerName}</p> : null}
+                            {isMiscClient(client) && trip.customerName ? <p className="invoice-customer">{trip.customerName}</p> : null}
                             {trip.note ? <p className="trip-note">{trip.note}</p> : null}
                           </div>
                           <span className={`status-pill ${trip.billed ? "ok" : "warning"}`}>
@@ -925,6 +925,76 @@ function FormModal({ title, children, onClose }) {
   );
 }
 
+function ClientSelect({ label, clients, value, onChange }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectRef = useRef(null);
+  const selectedClient = clients.find((client) => client.id === value);
+  const isDisabled = !clients.length;
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (!selectRef.current?.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  return (
+    <label className="custom-select-field">
+      {label}
+      <div className="custom-select-shell" ref={selectRef}>
+        <button
+          className="custom-select-trigger"
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+          disabled={isDisabled}
+          onClick={() => setIsOpen((current) => !current)}
+        >
+          <span>{selectedClient?.name || "Carga un cliente primero"}</span>
+          <span className="custom-select-arrow" aria-hidden="true" />
+        </button>
+
+        {isOpen ? (
+          <div className="custom-select-menu" role="listbox">
+            {clients.map((client) => (
+              <button
+                className={`custom-select-option ${client.id === value ? "is-selected" : ""}`}
+                type="button"
+                role="option"
+                aria-selected={client.id === value}
+                key={client.id}
+                onClick={() => {
+                  onChange(client.id);
+                  setIsOpen(false);
+                }}
+              >
+                {client.name}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </label>
+  );
+}
+
 function InvoiceForm({ clients, onSubmit }) {
   const [formValues, setFormValues] = useState({
     ...blankInvoice,
@@ -966,28 +1036,15 @@ function InvoiceForm({ clients, onSubmit }) {
 
   return (
     <form className="entry-form" onSubmit={handleSubmit}>
-      <label>
-        Empresa
-        <select
-          required
-          value={formValues.clientId}
-          onChange={(event) => {
-            setFormValues({ ...formValues, clientId: event.target.value, customerName: "", cargoNumber: "" });
-            setError("");
-          }}
-          disabled={!clients.length}
-        >
-          {clients.length ? (
-            clients.map((client) => (
-              <option key={client.id} value={client.id}>
-                {client.name}
-              </option>
-            ))
-          ) : (
-            <option value="">Carga un cliente primero</option>
-          )}
-        </select>
-      </label>
+      <ClientSelect
+        label="Empresa"
+        clients={clients}
+        value={formValues.clientId}
+        onChange={(clientId) => {
+          setFormValues({ ...formValues, clientId, customerName: "", cargoNumber: "" });
+          setError("");
+        }}
+      />
 
       <label>
         Nro. factura
@@ -1027,7 +1084,7 @@ function InvoiceForm({ clients, onSubmit }) {
         />
       </label>
 
-      {selectedClient?.isMisc ? (
+      {isMiscClient(selectedClient) ? (
         <label>
           Nombre del cliente
           <input
@@ -1098,19 +1155,12 @@ function TripForm({ clients, onSubmit }) {
 
   return (
     <form className="entry-form trip-form" onSubmit={handleSubmit}>
-      <label>
-        Cliente
-        <select
-          value={formValues.clientId}
-          onChange={(event) => setFormValues({ ...formValues, clientId: event.target.value })}
-        >
-          {clients.map((client) => (
-            <option key={client.id} value={client.id}>
-              {client.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <ClientSelect
+        label="Cliente"
+        clients={clients}
+        value={formValues.clientId}
+        onChange={(clientId) => setFormValues({ ...formValues, clientId, customerName: "" })}
+      />
 
       <label>
         Fecha
@@ -1150,7 +1200,7 @@ function TripForm({ clients, onSubmit }) {
         />
       </label>
 
-      {selectedClient?.isMisc ? (
+      {isMiscClient(selectedClient) ? (
         <label>
           Nombre del cliente
           <input
@@ -1391,6 +1441,10 @@ function isOverdueInvoice(invoice) {
 
 function isFecovitaClient(client) {
   return slugify(client?.name || "") === "fecovita";
+}
+
+function isMiscClient(client) {
+  return Boolean(client?.isMisc) || slugify(client?.name || "") === "varios";
 }
 
 function getInvoiceStatusLabel(invoice) {
