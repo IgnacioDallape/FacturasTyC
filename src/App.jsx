@@ -390,6 +390,17 @@ function DashboardView({
   donutItems,
 }) {
   const pendingClients = summary.filter((client) => client.totalDue > 0);
+  const unbilledClients = summary
+    .map((client) => {
+      const clientTrips = pendingTrips.filter((trip) => trip.clientId === client.id);
+      const totalUnbilled = sumTripBillableAmounts(clientTrips, { [client.id]: client });
+
+      return {
+        ...client,
+        totalUnbilled,
+      };
+    })
+    .filter((client) => client.totalUnbilled > 0);
 
   return (
     <main className="layout-stack">
@@ -436,39 +447,77 @@ function DashboardView({
             </div>
 
             <div className="client-breakdown">
-              <div className="breakdown-title">
-                <h3>Cliente por cliente</h3>
-                <p>Saldo pendiente convertido a USD.</p>
-              </div>
-
-              {pendingClients.length ? (
-                <div className="breakdown-table">
-                  <div className="breakdown-head">
-                    <span>Cliente</span>
-                    <span>Adeudado</span>
-                  </div>
-
-                  {pendingClients.map((client, index) => (
-                    <div className="breakdown-row" key={client.id}>
-                      <div className="breakdown-client">
-                        <span className="legend-dot" style={{ background: chartColors[index % chartColors.length] }} />
-                        <strong>{client.name}</strong>
-                      </div>
-                      <strong>{formatCurrency(client.totalDue)}</strong>
-                    </div>
-                  ))}
-
-                  <div className="breakdown-row breakdown-total">
-                    <strong>Total</strong>
-                    <strong>{formatCurrency(totalUnpaid)}</strong>
-                  </div>
+              <section className="breakdown-section">
+                <div className="breakdown-title">
+                  <h3>Cliente por cliente</h3>
+                  <p>Saldo pendiente convertido a USD.</p>
                 </div>
-              ) : (
-                <EmptyState
-                  title="Sin deuda pendiente"
-                  message="Todas las facturas cargadas figuran como cobradas."
-                />
-              )}
+
+                {pendingClients.length ? (
+                  <div className="breakdown-table">
+                    <div className="breakdown-head">
+                      <span>Cliente</span>
+                      <span>Adeudado</span>
+                    </div>
+
+                    {pendingClients.map((client, index) => (
+                      <div className="breakdown-row" key={client.id}>
+                        <div className="breakdown-client">
+                          <span className="legend-dot" style={{ background: chartColors[index % chartColors.length] }} />
+                          <strong>{client.name}</strong>
+                        </div>
+                        <strong>{formatCurrency(client.totalDue)}</strong>
+                      </div>
+                    ))}
+
+                    <div className="breakdown-row breakdown-total">
+                      <strong>Total</strong>
+                      <strong>{formatCurrency(totalUnpaid)}</strong>
+                    </div>
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="Sin deuda pendiente"
+                    message="Todas las facturas cargadas figuran como cobradas."
+                  />
+                )}
+              </section>
+
+              <section className="breakdown-section">
+                <div className="breakdown-title">
+                  <h3>No facturados</h3>
+                  <p>Viajes pendientes con IVA salvo Varios.</p>
+                </div>
+
+                {unbilledClients.length ? (
+                  <div className="breakdown-table">
+                    <div className="breakdown-head">
+                      <span>Cliente</span>
+                      <span>A facturar</span>
+                    </div>
+
+                    {unbilledClients.map((client, index) => (
+                      <div className="breakdown-row" key={client.id}>
+                        <div className="breakdown-client">
+                          <span className="legend-dot" style={{ background: chartColors[index % chartColors.length] }} />
+                          <strong>{client.name}</strong>
+                        </div>
+                        <strong>{formatCurrency(client.totalUnbilled)}</strong>
+                      </div>
+                    ))}
+
+                    <div className="breakdown-row breakdown-total">
+                      <strong>Total</strong>
+                      <strong>{formatCurrency(unbilledTripsAmount)}</strong>
+                    </div>
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="Sin viajes no facturados"
+                    message="Cuando haya viajes pendientes, van a aparecer aca."
+                  />
+                )}
+              </section>
             </div>
           </div>
         </article>
