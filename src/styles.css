@@ -76,6 +76,17 @@ button {
     radial-gradient(circle at left center, rgba(223, 131, 7, 0.08), transparent 24%);
 }
 
+.finance-bridge-frame {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .topbar,
 .toolbar-card,
 .panel,

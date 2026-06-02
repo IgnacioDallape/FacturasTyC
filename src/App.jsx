@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { isSupabaseConfigured, loadRemoteState, saveRemoteState } from "./lib/supabase";
 
 const STORAGE_KEY = "remitos-facturas-state-v1";
+const FINANCE_APP_URL = import.meta.env.VITE_FINANCE_APP_URL || "https://fleet-finanzas.vercel.app/";
+const FINANCE_APP_ORIGIN = new URL(FINANCE_APP_URL).origin;
 const ARS_PER_USD = 1100;
 const IVA_RATE = 0.21;
 const IVA_TOTAL_RATE = 1 + IVA_RATE;
@@ -112,6 +114,7 @@ function App() {
     amount: null,
     count: null,
   });
+  const financeBridgeRef = useRef(null);
   const selectedMonth = currentMonth;
 
   const clients = appState.clients || [];
@@ -309,44 +312,51 @@ function App() {
   useEffect(() => {
     if (activeView !== "dashboard") return undefined;
 
-    const streamUrl = `/api/finance-realtime?month=${selectedMonth}&email=nachodallape2@gmail.com`;
+    const handleMessage = (event) => {
+      if (event.origin !== FINANCE_APP_ORIGIN) return;
+      if (event.data?.type !== "fleet-finanzas-summary") return;
 
-    if (typeof EventSource === "undefined") {
-      return undefined;
-    }
-
-    const stream = new EventSource(streamUrl);
-
-    const handleFinance = (event) => {
       try {
-        const payload = JSON.parse(event.data);
-        const next = payload?.summary?.chequesEnCartera || {};
+        const next = event.data.summary?.chequesEnCartera || {};
         setFinanceSummary({
           amount: Number.isFinite(Number(next.amount)) ? Number(next.amount) : null,
           count: Number.isFinite(Number(next.count)) ? Number(next.count) : null,
         });
       } catch (error) {
-        console.error("finance realtime parse error", error);
+        console.error("finance bridge parse error", error);
       }
     };
 
-    const handleError = () => {
-      // EventSource reconecta solo; dejamos la ultima cifra visible.
+    const requestSummary = () => {
+      financeBridgeRef.current?.contentWindow?.postMessage(
+        { type: "facturas-tyc-request-finance-summary" },
+        FINANCE_APP_ORIGIN,
+      );
     };
 
-    stream.addEventListener("finance", handleFinance);
-    stream.addEventListener("error", handleError);
+    window.addEventListener("message", handleMessage);
+    const timer = window.setInterval(requestSummary, 2500);
+    window.setTimeout(requestSummary, 600);
 
     return () => {
-      stream.removeEventListener("finance", handleFinance);
-      stream.removeEventListener("error", handleError);
-      stream.close();
+      window.removeEventListener("message", handleMessage);
+      window.clearInterval(timer);
     };
-  }, [activeView, selectedMonth]);
+  }, [activeView]);
 
   return (
     <div className="app-shell">
       <div className="page-gradient" />
+      {activeView === "dashboard" ? (
+        <iframe
+          ref={financeBridgeRef}
+          className="finance-bridge-frame"
+          title="FinanzasApp realtime bridge"
+          src={`${FINANCE_APP_URL}?financeBridge=1`}
+          aria-hidden="true"
+          tabIndex="-1"
+        />
+      ) : null}
 
       <header className="topbar">
         <h1>{appState.profile.appName}</h1>
@@ -463,12 +473,17 @@ function DashboardView({
           tone="sand"
         />
         <MetricCard
-          label="Cheques en cartera"
-          value={formatCurrency(financeSummary?.amount ?? 0)}
-          detail={financeSummary?.count != null ? `${financeSummary.count} cobros` : "Sincronizando con FinanzasApp"}
+          label="Monto no facturado"
+          value={formatCurrency(unbilledTripsAmount)}
+          detail="Con IVA salvo Varios"
           tone="orange"
         />
-        <MetricCard label="Viajes no facturados" value={String(pendingTrips.length)} detail="Listos para revisar" tone="slate" />
+        <MetricCard
+          label="Cheques en cartera"
+          value={financeSummary?.amount == null ? "Sin datos" : formatCurrency(financeSummary.amount)}
+          detail={financeSummary?.count != null ? `${financeSummary.count} cobros` : "Sincronizando con FinanzasApp"}
+          tone="slate"
+        />
       </section>
 
       <section className="dashboard-receivables">
