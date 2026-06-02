@@ -108,6 +108,10 @@ const blankFiscalCredit = {
 function App() {
   const [appState, setAppState] = useDatabaseState(initialState);
   const [activeView, setActiveView] = useState("dashboard");
+  const [financeSummary, setFinanceSummary] = useState({
+    amount: null,
+    count: null,
+  });
   const selectedMonth = currentMonth;
 
   const clients = appState.clients || [];
@@ -302,6 +306,44 @@ function App() {
     }));
   };
 
+  useEffect(() => {
+    if (activeView !== "dashboard") return undefined;
+
+    const streamUrl = `/api/finance-realtime?month=${selectedMonth}&email=nachodallape2@gmail.com`;
+
+    if (typeof EventSource === "undefined") {
+      return undefined;
+    }
+
+    const stream = new EventSource(streamUrl);
+
+    const handleFinance = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        const next = payload?.summary?.chequesEnCartera || {};
+        setFinanceSummary({
+          amount: Number.isFinite(Number(next.amount)) ? Number(next.amount) : null,
+          count: Number.isFinite(Number(next.count)) ? Number(next.count) : null,
+        });
+      } catch (error) {
+        console.error("finance realtime parse error", error);
+      }
+    };
+
+    const handleError = () => {
+      // EventSource reconecta solo; dejamos la ultima cifra visible.
+    };
+
+    stream.addEventListener("finance", handleFinance);
+    stream.addEventListener("error", handleError);
+
+    return () => {
+      stream.removeEventListener("finance", handleFinance);
+      stream.removeEventListener("error", handleError);
+      stream.close();
+    };
+  }, [activeView, selectedMonth]);
+
   return (
     <div className="app-shell">
       <div className="page-gradient" />
@@ -347,6 +389,7 @@ function App() {
           pendingTrips={unbilledPendingTrips}
           summary={dashboardSummary}
           donutItems={donutItems}
+          financeSummary={financeSummary}
         />
       ) : activeView === "clientes" ? (
         <ClientsView
@@ -388,6 +431,7 @@ function DashboardView({
   pendingTrips,
   summary,
   donutItems,
+  financeSummary,
 }) {
   const pendingClients = summary.filter((client) => client.totalDue > 0);
   const unbilledClients = summary
@@ -419,9 +463,9 @@ function DashboardView({
           tone="sand"
         />
         <MetricCard
-          label="Monto no facturado"
-          value={formatCurrency(unbilledTripsAmount)}
-          detail="Con IVA salvo Varios"
+          label="Cheques en cartera"
+          value={formatCurrency(financeSummary?.amount ?? 0)}
+          detail={financeSummary?.count != null ? `${financeSummary.count} cobros` : "Sincronizando con FinanzasApp"}
           tone="orange"
         />
         <MetricCard label="Viajes no facturados" value={String(pendingTrips.length)} detail="Listos para revisar" tone="slate" />
