@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { isSupabaseConfigured, loadRemoteState, saveRemoteState } from "./lib/supabase";
 
 const STORAGE_KEY = "remitos-facturas-state-v1";
