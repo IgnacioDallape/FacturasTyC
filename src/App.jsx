@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { isSupabaseConfigured, loadRemoteState, saveRemoteState } from "./lib/supabase";
 
 const STORAGE_KEY = "remitos-facturas-state-v1";
-const FINANCE_APP_URL = import.meta.env.VITE_FINANCE_APP_URL || "https://fleet-finanzas.vercel.app/";
-const FINANCE_APP_ORIGIN = new URL(FINANCE_APP_URL).origin;
+const FINANCE_SUMMARY_URL =
+  import.meta.env.VITE_FINANCE_SUMMARY_URL || "https://fleet-finanzas.vercel.app/api/cheques-cartera";
 const ARS_PER_USD = 1100;
 const IVA_RATE = 0.21;
 const IVA_TOTAL_RATE = 1 + IVA_RATE;
@@ -114,7 +114,6 @@ function App() {
     amount: null,
     count: null,
   });
-  const financeBridgeRef = useRef(null);
   const selectedMonth = currentMonth;
 
   const clients = appState.clients || [];
@@ -311,35 +310,29 @@ function App() {
 
   useEffect(() => {
     if (activeView !== "dashboard") return undefined;
+    let isMounted = true;
 
-    const handleMessage = (event) => {
-      if (event.origin !== FINANCE_APP_ORIGIN) return;
-      if (event.data?.type !== "fleet-finanzas-summary") return;
-
+    const loadFinanceSummary = async () => {
       try {
-        const next = event.data.summary?.chequesEnCartera || {};
+        const response = await fetch(FINANCE_SUMMARY_URL, { cache: "no-store" });
+        if (!response.ok) throw new Error(`Finance API ${response.status}`);
+        const payload = await response.json();
+        if (!isMounted) return;
+
         setFinanceSummary({
-          amount: Number.isFinite(Number(next.amount)) ? Number(next.amount) : null,
-          count: Number.isFinite(Number(next.count)) ? Number(next.count) : null,
+          amount: Number.isFinite(Number(payload.amount)) ? Number(payload.amount) : null,
+          count: Number.isFinite(Number(payload.count)) ? Number(payload.count) : null,
         });
       } catch (error) {
-        console.error("finance bridge parse error", error);
+        console.error("finance API error", error);
       }
     };
 
-    const requestSummary = () => {
-      financeBridgeRef.current?.contentWindow?.postMessage(
-        { type: "facturas-tyc-request-finance-summary" },
-        FINANCE_APP_ORIGIN,
-      );
-    };
-
-    window.addEventListener("message", handleMessage);
-    const timer = window.setInterval(requestSummary, 2500);
-    window.setTimeout(requestSummary, 600);
+    loadFinanceSummary();
+    const timer = window.setInterval(loadFinanceSummary, 2500);
 
     return () => {
-      window.removeEventListener("message", handleMessage);
+      isMounted = false;
       window.clearInterval(timer);
     };
   }, [activeView]);
@@ -347,16 +340,6 @@ function App() {
   return (
     <div className="app-shell">
       <div className="page-gradient" />
-      {activeView === "dashboard" ? (
-        <iframe
-          ref={financeBridgeRef}
-          className="finance-bridge-frame"
-          title="FinanzasApp realtime bridge"
-          src={`${FINANCE_APP_URL}?financeBridge=1`}
-          aria-hidden="true"
-          tabIndex="-1"
-        />
-      ) : null}
 
       <header className="topbar">
         <h1>{appState.profile.appName}</h1>
@@ -481,7 +464,7 @@ function DashboardView({
         <MetricCard
           label="Cheques en cartera"
           value={financeSummary?.amount == null ? "Sin datos" : formatCurrency(financeSummary.amount)}
-          detail={financeSummary?.count != null ? `${financeSummary.count} cobros` : "Sincronizando con FinanzasApp"}
+          detail={financeSummary?.count != null ? `${financeSummary.count} cheques` : "Sincronizando con FinanzasApp"}
           tone="slate"
         />
       </section>
