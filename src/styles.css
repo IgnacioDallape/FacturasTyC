@@ -835,7 +835,7 @@ h2 {
 }
 
 .fiscal-credit-form {
-  grid-template-columns: minmax(220px, 1fr) auto;
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 220px) auto;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: rgba(241, 226, 195, 0.5);
@@ -860,6 +860,16 @@ h2 {
 .credit-row span {
   color: var(--text);
   font-weight: 800;
+}
+
+.credit-row-main {
+  display: grid;
+  gap: 3px;
+}
+
+.credit-row-main small {
+  color: var(--text-soft);
+  font-size: 0.76rem;
 }
 
 .full-span {

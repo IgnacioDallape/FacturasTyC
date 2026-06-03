@@ -7,6 +7,10 @@ const FINANCE_SUMMARY_URL =
 const ARS_PER_USD = 1100;
 const IVA_RATE = 0.21;
 const IVA_TOTAL_RATE = 1 + IVA_RATE;
+const FISCAL_CREDIT_PERCENTAGES = [
+  { value: "100", label: "Tomar 100%" },
+  { value: "40", label: "Tomar 40%" },
+];
 const TRIP_RATE_ORIGINS = [
   { key: "mendoza", label: "Desde Mza" },
   { key: "sanJuan", label: "Desde San Juan" },
@@ -105,6 +109,7 @@ const blankTrip = {
 
 const blankFiscalCredit = {
   amount: "",
+  percentage: "100",
 };
 
 function App() {
@@ -291,11 +296,12 @@ function App() {
 
   const addFiscalCredit = (month, values) => {
     const amount = Number(values.amount || 0);
+    const percentage = normalizeFiscalCreditPercentage(values.percentage);
     if (!month || !amount) return false;
 
     setAppState((current) => ({
       ...current,
-      fiscalCredits: [{ id: createRecordId("fiscal-credit"), month, amount }, ...(current.fiscalCredits || [])],
+      fiscalCredits: [{ id: createRecordId("fiscal-credit"), month, amount, percentage }, ...(current.fiscalCredits || [])],
     }));
 
     return true;
@@ -913,7 +919,7 @@ function IvaView({
   const monthlyBilledTotal = sumAmounts(monthlyInvoices);
   const fiscalDebit = calculateIncludedVat(monthlyBilledTotal);
   const monthCredits = fiscalCredits.filter((credit) => credit.month === selectedTaxMonth);
-  const fiscalCredit = sumAmounts(monthCredits);
+  const fiscalCredit = monthCredits.reduce((sum, credit) => sum + getFiscalCreditAppliedAmount(credit), 0);
   const vatToPay = fiscalDebit - fiscalCredit;
 
   const addCredit = (values) => onAddFiscalCredit(selectedTaxMonth, values);
@@ -957,15 +963,26 @@ function IvaView({
 
         <div className="credit-list">
           {monthCredits.length ? (
-            monthCredits.map((credit) => (
-              <div className="credit-row" key={credit.id}>
-                <strong>Credito fiscal</strong>
-                <span>{formatCurrency(credit.amount)}</span>
+            monthCredits.map((credit) => {
+              const percentage = getFiscalCreditPercentage(credit);
+              const appliedAmount = getFiscalCreditAppliedAmount(credit);
+
+              return (
+                <div className="credit-row" key={credit.id}>
+                  <div className="credit-row-main">
+                    <strong>Credito fiscal</strong>
+                    <small>
+                      {percentage}% tomado
+                      {percentage !== 100 ? ` de ${formatCurrency(credit.amount)}` : ""}
+                    </small>
+                  </div>
+                  <span>{formatCurrency(appliedAmount)}</span>
                 <button className="ghost-button danger compact-action" type="button" onClick={() => onDeleteFiscalCredit(credit.id)}>
                   Eliminar
                 </button>
               </div>
-            ))
+              );
+            })
           ) : (
             <EmptyState title="Sin credito fiscal" message="Carga importes para restarlos del debito fiscal del mes." />
           )}
@@ -1430,11 +1447,28 @@ function FiscalCreditForm({ onSubmit }) {
           required
           value={formValues.amount}
           onChange={(event) => {
-            setFormValues({ amount: event.target.value });
+            setFormValues({ ...formValues, amount: event.target.value });
             setError("");
           }}
           placeholder="250000"
         />
+      </label>
+
+      <label>
+        Tomar
+        <select
+          value={formValues.percentage}
+          onChange={(event) => {
+            setFormValues({ ...formValues, percentage: event.target.value });
+            setError("");
+          }}
+        >
+          {FISCAL_CREDIT_PERCENTAGES.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </label>
 
       <button className="primary-button" type="submit">
@@ -1591,6 +1625,18 @@ function normalizeTrip(values) {
     amount: Number(values.amount || 0),
     note: values.note?.trim() || "",
   };
+}
+
+function normalizeFiscalCreditPercentage(value) {
+  return Number(value) === 40 ? 40 : 100;
+}
+
+function getFiscalCreditPercentage(credit) {
+  return normalizeFiscalCreditPercentage(credit?.percentage);
+}
+
+function getFiscalCreditAppliedAmount(credit) {
+  return Number(credit?.amount || 0) * (getFiscalCreditPercentage(credit) / 100);
 }
 
 function buildEmptyTripRates() {
