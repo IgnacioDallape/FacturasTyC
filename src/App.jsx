@@ -1454,22 +1454,26 @@ function FiscalCreditForm({ onSubmit }) {
         />
       </label>
 
-      <label>
-        Tomar
-        <select
-          value={formValues.percentage}
-          onChange={(event) => {
-            setFormValues({ ...formValues, percentage: event.target.value });
-            setError("");
-          }}
-        >
+      <fieldset className="percentage-picker">
+        <legend>Tomar</legend>
+        <div className="percentage-options">
           {FISCAL_CREDIT_PERCENTAGES.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
+            <label key={option.value} className={formValues.percentage === option.value ? "is-selected" : ""}>
+              <input
+                type="radio"
+                name="fiscal-credit-percentage"
+                value={option.value}
+                checked={formValues.percentage === option.value}
+                onChange={(event) => {
+                  setFormValues({ ...formValues, percentage: event.target.value });
+                  setError("");
+                }}
+              />
+              <span>{option.value}%</span>
+            </label>
           ))}
-        </select>
-      </label>
+        </div>
+      </fieldset>
 
       <button className="primary-button" type="submit">
         Agregar credito
