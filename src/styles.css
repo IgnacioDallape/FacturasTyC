@@ -1318,6 +1318,14 @@ textarea:focus {
     order: 2;
   }
 
+  .iva-panel {
+    order: 1;
+  }
+
+  .iva-credit-panel {
+    order: 3;
+  }
+
   .clients-actions {
     justify-items: stretch;
   }
