@@ -21,9 +21,8 @@ const POSITION_RANGES = [
   { key: "positions12To15", label: "12 a 15 posiciones" },
 ];
 
-const today = new Date();
-const currentMonth = today.toISOString().slice(0, 7);
-const currentDate = today.toISOString().slice(0, 10);
+const currentDate = getLocalDateKey();
+const currentMonth = currentDate.slice(0, 7);
 
 const initialState = {
   profile: {
@@ -1584,7 +1583,7 @@ function useDatabaseState(defaultValue) {
       const nextState = typeof updater === "function" ? updater(current) : updater;
 
       if (isSupabaseConfigured) {
-        saveRemoteState(nextState)
+        saveRemoteState(nextState, current)
           .catch((error) => console.error(error));
       } else {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
@@ -1607,6 +1606,14 @@ function mergeAppState(defaultValue, storedValue) {
     unbilledTrips: Array.isArray(storedValue.unbilledTrips) ? storedValue.unbilledTrips : defaultValue.unbilledTrips,
     fiscalCredits: Array.isArray(storedValue.fiscalCredits) ? storedValue.fiscalCredits : defaultValue.fiscalCredits,
   };
+}
+
+function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 function normalizeInvoice(values) {

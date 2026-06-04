@@ -27,14 +27,53 @@ export async function loadRemoteState() {
   return data?.data || null;
 }
 
-export async function saveRemoteState(state) {
+export async function saveRemoteState(state, previousState = null) {
   if (!supabase) return;
+
+  const latestState = await loadRemoteState();
+  const nextState = latestState && previousState
+    ? mergeRemoteState(latestState, previousState, state)
+    : state;
 
   const { error } = await supabase.from("app_state").upsert({
     id: APP_STATE_ID,
-    data: state,
+    data: nextState,
     updated_at: new Date().toISOString(),
   });
 
   if (error) throw error;
+  return nextState;
+}
+
+function mergeRemoteState(remoteState, previousState, nextState) {
+  return {
+    ...remoteState,
+    ...nextState,
+    profile: nextState.profile || remoteState.profile,
+    clients: mergeCollectionById(remoteState.clients, previousState.clients, nextState.clients),
+    invoices: mergeCollectionById(remoteState.invoices, previousState.invoices, nextState.invoices),
+    unbilledTrips: mergeCollectionById(remoteState.unbilledTrips, previousState.unbilledTrips, nextState.unbilledTrips),
+    fiscalCredits: mergeCollectionById(remoteState.fiscalCredits, previousState.fiscalCredits, nextState.fiscalCredits),
+  };
+}
+
+function mergeCollectionById(remoteItems = [], previousItems = [], nextItems = []) {
+  const merged = new Map();
+  const previousIds = new Set(previousItems.map((item) => item.id));
+  const nextIds = new Set(nextItems.map((item) => item.id));
+  const deletedIds = new Set([...previousIds].filter((id) => !nextIds.has(id)));
+
+  remoteItems.forEach((item) => {
+    if (item?.id && !deletedIds.has(item.id)) {
+      merged.set(item.id, item);
+    }
+  });
+
+  nextItems.forEach((item) => {
+    if (item?.id) {
+      merged.set(item.id, item);
+    }
+  });
+
+  return [...merged.values()];
 }

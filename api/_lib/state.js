@@ -156,7 +156,11 @@ export function filterByQuery(items, query) {
 }
 
 export function getCurrentMonth() {
-  return new Date().toISOString().slice(0, 7);
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+
+  return `${year}-${month}`;
 }
 
 function sumAmounts(items) {
