@@ -1832,11 +1832,16 @@ function formatMonth(value) {
 
 function formatDate(value) {
   if (!value) return "Sin fecha";
+  const [year, month, day] = value.split("-").map(Number);
+  const date = Number.isFinite(year) && Number.isFinite(month) && Number.isFinite(day)
+    ? new Date(year, month - 1, day)
+    : new Date(value);
+
   return new Intl.DateTimeFormat("es-AR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  }).format(new Date(value));
+  }).format(date);
 }
 
 const chartColors = ["#0f5f4b", "#2eb384", "#c86f1c", "#e88902", "#627088", "#d7dde5"];
