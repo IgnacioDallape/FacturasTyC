@@ -14,7 +14,10 @@ export default async function handler(req, res) {
     const { state, updatedAt } = await loadAppState();
     const summary = buildSummary(state, month);
     const fiscalCredits = state.fiscalCredits.filter((credit) => credit.month === month);
-    const fiscalCredit = fiscalCredits.reduce((sum, credit) => sum + Number(credit.amount || 0), 0);
+    const fiscalCredit = fiscalCredits.reduce((sum, credit) => {
+      const percentage = Number(credit.percentage) === 40 ? 40 : 100;
+      return sum + Number(credit.amount || 0) * (percentage / 100);
+    }, 0);
     const fiscalDebit = summary.totals.totalMonthlyVat;
 
     sendJson(res, 200, {
