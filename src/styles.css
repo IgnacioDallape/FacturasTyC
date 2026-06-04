@@ -1311,11 +1311,11 @@ textarea:focus {
   }
 
   .dashboard-receivables {
-    order: 1;
+    order: 2;
   }
 
   .metrics-grid {
-    order: 2;
+    order: 1;
   }
 
   .iva-panel {
