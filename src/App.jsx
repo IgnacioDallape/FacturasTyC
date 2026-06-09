@@ -360,13 +360,13 @@ function App() {
             className={activeView === "clientes" ? "is-active" : ""}
             onClick={() => setActiveView("clientes")}
           >
-            Clientes
+            Facturas
           </button>
           <button
             className={activeView === "viajes" ? "is-active" : ""}
             onClick={() => setActiveView("viajes")}
           >
-            Viajes
+            Pendientes de facturacion
           </button>
           <button
             className={activeView === "iva" ? "is-active" : ""}

@@ -1326,7 +1326,9 @@ textarea:focus {
     flex: 1 1 0;
     min-height: 42px;
     padding: 0.72rem 0.45rem;
-    font-size: 0.82rem;
+    font-size: 0.75rem;
+    line-height: 1.12;
+    white-space: normal;
   }
 
   .inline-form,
