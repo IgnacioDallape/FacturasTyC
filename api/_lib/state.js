@@ -1,5 +1,5 @@
-const FALLBACK_SUPABASE_URL = "https://zsjlzymxpnogghipjlaw.supabase.co";
-const FALLBACK_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpzamx6eW14cG5vZ2doaXBqbGF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NTE1MDAsImV4cCI6MjA5NTIyNzUwMH0.zeYWujxI8nFIB4mBWDCie6EP4ktR8SbhKWJB5fNBhCU";
+const FALLBACK_SUPABASE_URL = "https://fwggggazdqdrwfkbzgti.supabase.co";
+const FALLBACK_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3Z2dnZ2F6ZHFkcndma2J6Z3RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDEzODEsImV4cCI6MjA5NjYxNzM4MX0.rgOKACZjv2xpyBcuUTMVmtzt-iX43qeb9XKurjAFQvU";
 
 const APP_STATE_ID = "facturastyc";
 const IVA_RATE = 0.21;
