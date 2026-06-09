@@ -35,14 +35,33 @@ export async function saveRemoteState(state, previousState = null) {
     ? mergeRemoteState(latestState, previousState, state)
     : state;
 
+  await persistRemoteState(nextState);
+
+  if (!previousState) return nextState;
+
+  // Second pass: narrows the race window when two devices save almost together.
+  await wait(350);
+  const refreshedState = await loadRemoteState();
+  const reconciledState = refreshedState
+    ? mergeRemoteState(refreshedState, previousState, nextState)
+    : nextState;
+
+  await persistRemoteState(reconciledState);
+  return reconciledState;
+}
+
+async function persistRemoteState(state) {
   const { error } = await supabase.from("app_state").upsert({
     id: APP_STATE_ID,
-    data: nextState,
+    data: state,
     updated_at: new Date().toISOString(),
   });
 
   if (error) throw error;
-  return nextState;
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function mergeRemoteState(remoteState, previousState, nextState) {

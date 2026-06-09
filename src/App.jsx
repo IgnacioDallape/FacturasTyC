@@ -662,10 +662,11 @@ function ClientsView({
 
       <section className="client-list">
         {clients.map((client) => {
-          const clientInvoices = invoices.filter((invoice) => invoice.clientId === client.id);
+          const clientInvoices = sortInvoicesByNewest(invoices.filter((invoice) => invoice.clientId === client.id));
           const monthlyTotal = sumAmounts(clientInvoices.filter((invoice) => invoice.date?.startsWith(selectedMonth)));
           const monthlyVat = calculateIncludedVat(monthlyTotal);
           const unpaidInvoices = clientInvoices.filter((invoice) => !invoice.paid);
+          const paidInvoices = clientInvoices.filter((invoice) => invoice.paid);
           const overdueInvoices = unpaidInvoices.filter(isOverdueInvoice);
           const overdueTotal = sumAmounts(overdueInvoices);
           const overdueCount = overdueInvoices.length;
@@ -710,60 +711,100 @@ function ClientsView({
                   <StatBox label="IVA estimado" value={formatCurrency(monthlyVat)} />
                 </div>
 
-                <div className="invoice-list">
-                  {clientInvoices.length ? (
-                    clientInvoices.map((invoice) => (
-                      <details className={`invoice-row ${invoice.paid ? "is-paid" : ""}`} key={invoice.id}>
-                        <summary>
-                          <span>
-                            <small>Nro. factura</small>
-                            <strong>{invoice.invoiceNumber}</strong>
-                          </span>
-                          <span>
-                            <small>Fecha</small>
-                            <strong>{formatDate(invoice.date)}</strong>
-                          </span>
-                          <span>
-                            <small>Monto</small>
-                            <strong>{formatCurrency(invoice.amount)}</strong>
-                          </span>
-                          <span className="disclosure-arrow small" aria-hidden="true" />
-                        </summary>
-                        <div className="invoice-row-details">
-                          {(isMiscClient(client) && invoice.customerName) || invoice.cargoNumber ? (
-                            <div className="invoice-detail-copy">
-                              {isMiscClient(client) && invoice.customerName ? (
-                                <p className="invoice-customer">{invoice.customerName}</p>
-                              ) : null}
-                              {invoice.cargoNumber ? (
-                                <p className="invoice-customer">Carga {invoice.cargoNumber}</p>
-                              ) : null}
-                            </div>
-                          ) : null}
-                          <span className={`status-pill ${getInvoiceStatusTone(invoice)}`}>
-                            {getInvoiceStatusLabel(invoice)}
-                          </span>
-                          <div className="row-actions">
-                            <button className="ghost-button" type="button" onClick={() => onToggleInvoicePaid(invoice.id)}>
-                              {invoice.paid ? "Marcar impaga" : "Marcar pagada"}
-                            </button>
-                            <button className="ghost-button danger" type="button" onClick={() => onDeleteInvoice(invoice.id)}>
-                              Eliminar
-                            </button>
-                          </div>
-                        </div>
-                      </details>
-                    ))
-                  ) : (
-                    <EmptyState title="Sin facturas" message="Carga la primera factura de este cliente." />
-                  )}
-                </div>
+                <section className="invoice-section">
+                  <div className="invoice-section-header">
+                    <strong>Facturas pendientes</strong>
+                    <span>{unpaidInvoices.length} abiertas</span>
+                  </div>
+                  <div className="invoice-list">
+                    {unpaidInvoices.length ? (
+                      unpaidInvoices.map((invoice) => (
+                        <InvoiceRow
+                          key={invoice.id}
+                          client={client}
+                          invoice={invoice}
+                          onToggleInvoicePaid={onToggleInvoicePaid}
+                          onDeleteInvoice={onDeleteInvoice}
+                        />
+                      ))
+                    ) : (
+                      <EmptyState title="Sin facturas pendientes" message="Las facturas pagadas se muestran en la seccion de abajo." />
+                    )}
+                  </div>
+                </section>
+
+                <section className="invoice-section paid-invoice-section">
+                  <div className="invoice-section-header">
+                    <strong>Facturas pagadas</strong>
+                    <span>{paidInvoices.length} pagadas</span>
+                  </div>
+                  <div className="invoice-list">
+                    {paidInvoices.length ? (
+                      paidInvoices.map((invoice) => (
+                        <InvoiceRow
+                          key={invoice.id}
+                          client={client}
+                          invoice={invoice}
+                          onToggleInvoicePaid={onToggleInvoicePaid}
+                          onDeleteInvoice={onDeleteInvoice}
+                        />
+                      ))
+                    ) : (
+                      <EmptyState title="Sin facturas pagadas" message="Cuando marques una factura como pagada va a aparecer aca." />
+                    )}
+                  </div>
+                </section>
               </div>
             </details>
           );
         })}
       </section>
     </main>
+  );
+}
+
+function InvoiceRow({ client, invoice, onToggleInvoicePaid, onDeleteInvoice }) {
+  return (
+    <details className={`invoice-row ${invoice.paid ? "is-paid" : ""}`}>
+      <summary>
+        <span>
+          <small>Nro. factura</small>
+          <strong>{invoice.invoiceNumber}</strong>
+        </span>
+        <span>
+          <small>Fecha</small>
+          <strong>{formatDate(invoice.date)}</strong>
+        </span>
+        <span>
+          <small>Monto</small>
+          <strong>{formatCurrency(invoice.amount)}</strong>
+        </span>
+        <span className="disclosure-arrow small" aria-hidden="true" />
+      </summary>
+      <div className="invoice-row-details">
+        {(isMiscClient(client) && invoice.customerName) || invoice.cargoNumber ? (
+          <div className="invoice-detail-copy">
+            {isMiscClient(client) && invoice.customerName ? (
+              <p className="invoice-customer">{invoice.customerName}</p>
+            ) : null}
+            {invoice.cargoNumber ? (
+              <p className="invoice-customer">Carga {invoice.cargoNumber}</p>
+            ) : null}
+          </div>
+        ) : null}
+        <span className={`status-pill ${getInvoiceStatusTone(invoice)}`}>
+          {getInvoiceStatusLabel(invoice)}
+        </span>
+        <div className="row-actions">
+          <button className="ghost-button" type="button" onClick={() => onToggleInvoicePaid(invoice.id)}>
+            {invoice.paid ? "Marcar impaga" : "Marcar pagada"}
+          </button>
+          <button className="ghost-button danger" type="button" onClick={() => onDeleteInvoice(invoice.id)}>
+            Eliminar
+          </button>
+        </div>
+      </div>
+    </details>
   );
 }
 
@@ -1538,6 +1579,8 @@ function EmptyState({ title, message }) {
 function useDatabaseState(defaultValue) {
   const [state, setState] = useState(defaultValue);
   const [ready, setReady] = useState(!isSupabaseConfigured);
+  const saveVersionRef = useRef(0);
+  const savesInFlightRef = useRef(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -1578,13 +1621,60 @@ function useDatabaseState(defaultValue) {
     };
   }, [defaultValue]);
 
+  useEffect(() => {
+    if (!isSupabaseConfigured) return undefined;
+    let isMounted = true;
+
+    const refreshRemoteState = async () => {
+      if (savesInFlightRef.current > 0) return;
+
+      try {
+        const remoteState = await loadRemoteState();
+        if (!remoteState || !isMounted) return;
+
+        setState((current) => mergeAppState(defaultValue, mergeIncomingState(current, remoteState)));
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshRemoteState();
+      }
+    };
+
+    const interval = window.setInterval(refreshRemoteState, 5000);
+    window.addEventListener("focus", refreshRemoteState);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshRemoteState);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [defaultValue]);
+
   const setAndPersistState = (updater) => {
     setState((current) => {
       const nextState = typeof updater === "function" ? updater(current) : updater;
 
       if (isSupabaseConfigured) {
+        const saveVersion = saveVersionRef.current + 1;
+        saveVersionRef.current = saveVersion;
+        savesInFlightRef.current += 1;
+
         saveRemoteState(nextState, current)
-          .catch((error) => console.error(error));
+          .then((savedState) => {
+            if (savedState && saveVersion === saveVersionRef.current) {
+              setState((latest) => mergeAppState(defaultValue, mergeIncomingState(latest, savedState)));
+            }
+          })
+          .catch((error) => console.error(error))
+          .finally(() => {
+            savesInFlightRef.current = Math.max(0, savesInFlightRef.current - 1);
+          });
       } else {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
       }
@@ -1608,6 +1698,32 @@ function mergeAppState(defaultValue, storedValue) {
   };
 }
 
+function mergeIncomingState(currentState, incomingState) {
+  return {
+    ...currentState,
+    ...incomingState,
+    profile: incomingState.profile || currentState.profile,
+    clients: mergeCollectionPreferIncoming(currentState.clients, incomingState.clients),
+    invoices: mergeCollectionPreferIncoming(currentState.invoices, incomingState.invoices),
+    unbilledTrips: mergeCollectionPreferIncoming(currentState.unbilledTrips, incomingState.unbilledTrips),
+    fiscalCredits: mergeCollectionPreferIncoming(currentState.fiscalCredits, incomingState.fiscalCredits),
+  };
+}
+
+function mergeCollectionPreferIncoming(currentItems = [], incomingItems = []) {
+  const merged = new Map();
+
+  currentItems.forEach((item) => {
+    if (item?.id) merged.set(item.id, item);
+  });
+
+  incomingItems.forEach((item) => {
+    if (item?.id) merged.set(item.id, item);
+  });
+
+  return [...merged.values()];
+}
+
 function getLocalDateKey(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -1625,6 +1741,18 @@ function normalizeInvoice(values) {
     customerName: values.customerName?.trim() || "",
     cargoNumber: values.cargoNumber?.trim() || "",
   };
+}
+
+function sortInvoicesByNewest(invoices) {
+  return [...invoices].sort((first, second) => {
+    const dateComparison = String(second.date || "").localeCompare(String(first.date || ""));
+    if (dateComparison !== 0) return dateComparison;
+
+    return String(second.invoiceNumber || "").localeCompare(String(first.invoiceNumber || ""), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+  });
 }
 
 function normalizeTrip(values) {

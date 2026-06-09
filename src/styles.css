@@ -955,6 +955,40 @@ h2 {
   border-radius: var(--radius-md);
 }
 
+.invoice-section {
+  display: grid;
+  gap: 10px;
+}
+
+.invoice-section + .invoice-section {
+  margin-top: 18px;
+}
+
+.invoice-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 4px;
+  color: var(--text);
+}
+
+.invoice-section-header strong {
+  font-size: 0.95rem;
+}
+
+.invoice-section-header span {
+  color: var(--text-soft);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.paid-invoice-section {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
 .invoice-row summary {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(92px, auto) minmax(104px, auto) 14px;
