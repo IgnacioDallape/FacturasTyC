@@ -5,6 +5,12 @@ const APP_STATE_ID = "facturastyc";
 const IVA_RATE = 0.21;
 const IVA_TOTAL_RATE = 1 + IVA_RATE;
 const ARS_PER_USD = 1100;
+const RELATIONAL_TABLES = {
+  clients: "facturas_clients",
+  invoices: "facturas_invoices",
+  trips: "facturas_unbilled_trips",
+  fiscalCredits: "facturas_fiscal_credits",
+};
 
 export function handleOptions(req, res) {
   setCorsHeaders(res);
@@ -37,6 +43,9 @@ export function getQuery(req) {
 export async function loadAppState() {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || FALLBACK_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || FALLBACK_SUPABASE_ANON_KEY;
+  const relationalState = await loadRelationalAppState(supabaseUrl, supabaseKey);
+
+  if (relationalState) return relationalState;
 
   const response = await fetch(
     `${supabaseUrl}/rest/v1/app_state?id=eq.${encodeURIComponent(APP_STATE_ID)}&select=data,updated_at`,
@@ -59,6 +68,108 @@ export async function loadAppState() {
   return {
     state: normalizeState(row?.data),
     updatedAt: row?.updated_at || null,
+  };
+}
+
+async function loadRelationalAppState(supabaseUrl, supabaseKey) {
+  const [clientsResponse, invoicesResponse, tripsResponse, fiscalCreditsResponse] = await Promise.all([
+    fetchRest(supabaseUrl, supabaseKey, `${RELATIONAL_TABLES.clients}?select=*&order=name.asc`),
+    fetchRest(supabaseUrl, supabaseKey, `${RELATIONAL_TABLES.invoices}?select=*&order=date.desc`),
+    fetchRest(supabaseUrl, supabaseKey, `${RELATIONAL_TABLES.trips}?select=*&order=date.desc`),
+    fetchRest(supabaseUrl, supabaseKey, `${RELATIONAL_TABLES.fiscalCredits}?select=*&order=month.desc`),
+  ]);
+
+  const responses = [clientsResponse, invoicesResponse, tripsResponse, fiscalCreditsResponse];
+  const missingTable = responses.some((response) => response.status === 404);
+  if (missingTable) return null;
+
+  const failedResponse = responses.find((response) => !response.ok);
+  if (failedResponse) {
+    const details = await failedResponse.text();
+    throw new Error(`Supabase relational read failed: ${failedResponse.status} ${details}`);
+  }
+
+  const [clients, invoices, unbilledTrips, fiscalCredits] = await Promise.all(
+    responses.map((response) => response.json()),
+  );
+
+  if (!clients.length && !invoices.length && !unbilledTrips.length && !fiscalCredits.length) {
+    return null;
+  }
+
+  const updatedAt = [
+    ...clients,
+    ...invoices,
+    ...unbilledTrips,
+    ...fiscalCredits,
+  ].reduce((latest, item) => {
+    if (!item.updated_at) return latest;
+    if (!latest || item.updated_at > latest) return item.updated_at;
+    return latest;
+  }, null);
+
+  return {
+    state: normalizeState({
+      profile: { appName: "Facturas" },
+      clients: clients.map(fromClientRow),
+      invoices: invoices.map(fromInvoiceRow),
+      unbilledTrips: unbilledTrips.map(fromTripRow),
+      fiscalCredits: fiscalCredits.map(fromFiscalCreditRow),
+    }),
+    updatedAt,
+  };
+}
+
+function fetchRest(supabaseUrl, supabaseKey, path) {
+  return fetch(`${supabaseUrl}/rest/v1/${path}`, {
+    headers: {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+    },
+  });
+}
+
+function fromClientRow(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    isMisc: Boolean(row.is_misc),
+    tripRates: row.trip_rates || {},
+  };
+}
+
+function fromInvoiceRow(row) {
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    invoiceNumber: row.invoice_number || "",
+    date: row.date,
+    amount: Number(row.amount || 0),
+    paid: Boolean(row.paid),
+    customerName: row.customer_name || "",
+    cargoNumber: row.cargo_number || "",
+  };
+}
+
+function fromTripRow(row) {
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    customerName: row.customer_name || "",
+    date: row.date,
+    route: row.route || "",
+    amount: Number(row.amount || 0),
+    note: row.note || "",
+    billed: Boolean(row.billed),
+  };
+}
+
+function fromFiscalCreditRow(row) {
+  return {
+    id: row.id,
+    month: row.month,
+    amount: Number(row.amount || 0),
+    percentage: Number(row.percentage || 100),
   };
 }
 
