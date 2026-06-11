@@ -1900,11 +1900,22 @@ function buildOverdueInvoicesMessage(overdueInvoices) {
     .map((invoice) => invoice.invoiceNumber?.trim())
     .filter(Boolean)
     .join(", ");
+  const hasMultipleInvoices = overdueInvoices.length !== 1;
+  const invoiceLabel = hasMultipleInvoices ? "las facturas" : "la factura";
+  const fallbackInvoiceText = hasMultipleInvoices ? "vencidas" : "vencida";
+  const pendingWord = hasMultipleInvoices ? "pendientes" : "pendiente";
+  const relativePronoun = hasMultipleInvoices ? "las cuales" : "la cual";
+  const invoiceVerb = hasMultipleInvoices ? "cuentan" : "cuenta";
+  const paymentVerb = hasMultipleInvoices ? "podrían abonarse" : "podría abonarse";
+  const dateLabel = hasMultipleInvoices ? "sus fechas" : "su fecha";
 
   return [
-    "Buen dia, espero encontrarlos muy bien.",
-    `Tenemos pendientes las facturas ${invoiceNumbers || "vencidas"}, las mismas cuentan con mas de 30 dias de facturadas.`,
-    "Cuando podrian abonarse las mismas?",
+    "Buenos días, espero que se encuentren muy bien.",
+    `Tenemos ${pendingWord} ${invoiceLabel} ${invoiceNumbers || fallbackInvoiceText}, ${relativePronoun} ${invoiceVerb} con más de 30 días desde ${dateLabel} de facturación.`,
+    `¿Podrían indicarnos cuándo ${paymentVerb}?`,
+    "Quedamos atentos a su respuesta.",
+    "Saludos,",
+    "Ignacio Dallape",
   ].join(" ");
 }
 
