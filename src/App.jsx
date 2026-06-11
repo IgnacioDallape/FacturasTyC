@@ -619,7 +619,7 @@ function ClientsView({
   const [expandedClientId, setExpandedClientId] = useState("");
   const [copiedNoticeClientId, setCopiedNoticeClientId] = useState("");
   const [draggingClientId, setDraggingClientId] = useState("");
-  const clientDragRef = useRef({ active: false, clientId: "", timer: null });
+  const clientDragRef = useRef({ active: false, clientId: "", timer: null, suppressClick: false });
 
   const createClient = (values) => {
     const clientId = onAddClient(values.name);
@@ -659,19 +659,25 @@ function ClientsView({
   };
 
   const clearClientDrag = () => {
+    const shouldSuppressClick = clientDragRef.current.active;
+
     if (clientDragRef.current.timer) {
       window.clearTimeout(clientDragRef.current.timer);
     }
 
-    clientDragRef.current = { active: false, clientId: "", timer: null };
+    clientDragRef.current = { active: false, clientId: "", timer: null, suppressClick: shouldSuppressClick };
     setDraggingClientId("");
+
+    if (shouldSuppressClick) {
+      window.setTimeout(() => {
+        clientDragRef.current.suppressClick = false;
+      }, 0);
+    }
   };
 
   const startClientDragPress = (event, clientId) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
-
-    event.preventDefault();
-    event.stopPropagation();
+    if (event.target.closest("button")) return;
 
     if (clientDragRef.current.timer) {
       window.clearTimeout(clientDragRef.current.timer);
@@ -680,6 +686,7 @@ function ClientsView({
     clientDragRef.current = {
       active: false,
       clientId,
+      suppressClick: false,
       timer: window.setTimeout(() => {
         clientDragRef.current.active = true;
         setDraggingClientId(clientId);
@@ -764,23 +771,16 @@ function ClientsView({
             >
               <summary
                 className="client-summary"
+                onPointerDown={(event) => startClientDragPress(event, client.id)}
+                onPointerMove={moveClientDragPress}
+                onPointerUp={clearClientDrag}
+                onPointerCancel={clearClientDrag}
                 onClick={(event) => {
                   event.preventDefault();
+                  if (clientDragRef.current.suppressClick) return;
                   setExpandedClientId((current) => (current === client.id ? "" : client.id));
                 }}
               >
-                <button
-                  className="drag-handle"
-                  type="button"
-                  aria-label={`Reordenar ${client.name}`}
-                  title="Mantener presionado para reordenar"
-                  onPointerDown={(event) => startClientDragPress(event, client.id)}
-                  onPointerMove={moveClientDragPress}
-                  onPointerUp={clearClientDrag}
-                  onPointerCancel={clearClientDrag}
-                >
-                  <span aria-hidden="true">||</span>
-                </button>
                 <div className="client-name">
                   <h2>{client.name}</h2>
                 </div>
@@ -795,7 +795,6 @@ function ClientsView({
                   }}
                 >
                   <span aria-hidden="true" className="edit-icon">✎</span>
-                  <span>Editar</span>
                 </button>
                 <SummaryMetric label="Total vencido" value={formatCurrency(overdueTotal)} />
                 <div className="client-status-actions">
@@ -880,47 +879,40 @@ function ClientsView({
 
 function InvoiceRow({ client, invoice, onToggleInvoicePaid, onDeleteInvoice }) {
   return (
-    <details className={`invoice-row ${invoice.paid ? "is-paid" : ""}`}>
-      <summary>
-        <span className="invoice-paper-icon" aria-hidden="true" />
-        <span>
-          <small>Nro. factura</small>
-          <strong>{invoice.invoiceNumber}</strong>
-        </span>
-        <span>
-          <small>Fecha</small>
-          <strong>{formatDate(invoice.date)}</strong>
-        </span>
-        <span>
-          <small>Monto</small>
-          <strong>{formatCurrency(invoice.amount)}</strong>
-        </span>
-        <span className="disclosure-arrow small" aria-hidden="true" />
-      </summary>
-      <div className="invoice-row-details">
-        {(isMiscClient(client) && invoice.customerName) || invoice.cargoNumber ? (
-          <div className="invoice-detail-copy">
-            {isMiscClient(client) && invoice.customerName ? (
-              <p className="invoice-customer">{invoice.customerName}</p>
-            ) : null}
-            {invoice.cargoNumber ? (
-              <p className="invoice-customer">Carga {invoice.cargoNumber}</p>
-            ) : null}
-          </div>
-        ) : null}
-        <span className={`status-pill ${getInvoiceStatusTone(invoice)}`}>
-          {getInvoiceStatusLabel(invoice)}
-        </span>
-        <div className="row-actions">
-          <button className="ghost-button" type="button" onClick={() => onToggleInvoicePaid(invoice.id)}>
-            {invoice.paid ? "Marcar impaga" : "Marcar pagada"}
-          </button>
-          <button className="ghost-button danger" type="button" onClick={() => onDeleteInvoice(invoice.id)}>
-            Eliminar
-          </button>
-        </div>
+    <div className={`invoice-row ${invoice.paid ? "is-paid" : ""}`}>
+      <span>
+        <small>Nro. factura</small>
+        <strong>{invoice.invoiceNumber}</strong>
+      </span>
+      <span>
+        <small>Fecha</small>
+        <strong>{formatDate(invoice.date)}</strong>
+      </span>
+      <span>
+        <small>Monto</small>
+        <strong>{formatCurrency(invoice.amount)}</strong>
+      </span>
+      <div className="invoice-inline-actions">
+        <button
+          className="icon-action success"
+          type="button"
+          aria-label={invoice.paid ? "Marcar impaga" : "Marcar pagada"}
+          title={invoice.paid ? "Marcar impaga" : "Marcar pagada"}
+          onClick={() => onToggleInvoicePaid(invoice.id)}
+        >
+          {invoice.paid ? "↺" : "✓"}
+        </button>
+        <button
+          className="icon-action danger"
+          type="button"
+          aria-label="Eliminar factura"
+          title="Eliminar factura"
+          onClick={() => onDeleteInvoice(invoice.id)}
+        >
+          ×
+        </button>
       </div>
-    </details>
+    </div>
   );
 }
 
@@ -2171,3 +2163,4 @@ function formatDate(value) {
 const chartColors = ["#0f5f4b", "#2eb384", "#c86f1c", "#e88902", "#627088", "#d7dde5"];
 
 export default App;
+
