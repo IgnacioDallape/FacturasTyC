@@ -717,6 +717,8 @@ h2 {
   gap: 0;
   overflow: hidden;
   padding: 0;
+  background: #fffdf8;
+  border-color: #fff;
 }
 
 .client-summary {
@@ -741,8 +743,8 @@ h2 {
 }
 
 .client-disclosure[open] .client-summary {
-  border-bottom: 1px solid var(--line);
-  background: rgba(255, 251, 242, 0.22);
+  border-bottom: 1px solid rgba(126, 100, 47, 0.12);
+  background: #fffdf8;
 }
 
 .client-name h2 {
@@ -801,7 +803,7 @@ h2 {
   display: grid;
   gap: 12px;
   padding: 14px 18px 18px;
-  background: rgba(255, 248, 232, 0.24);
+  background: #fffdf8;
 }
 
 .mini-stats {
