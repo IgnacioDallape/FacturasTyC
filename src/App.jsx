@@ -20,6 +20,7 @@ const POSITION_RANGES = [
   { key: "positions7To11", label: "7 a 11 posiciones" },
   { key: "positions12To15", label: "12 a 15 posiciones" },
 ];
+const CLIENT_ORDER_KEY = "__clientOrder";
 
 const currentDate = getLocalDateKey();
 const currentMonth = currentDate.slice(0, 7);
@@ -120,7 +121,7 @@ function App() {
   });
   const selectedMonth = currentMonth;
 
-  const clients = appState.clients || [];
+  const clients = useMemo(() => sortClientsByOrder(appState.clients || []), [appState.clients]);
   const invoices = appState.invoices || [];
   const unbilledTrips = appState.unbilledTrips || [];
   const fiscalCredits = appState.fiscalCredits || [];
@@ -205,7 +206,7 @@ function App() {
           id: clientId,
           name: trimmedName,
           isMisc: isMiscClient({ name: trimmedName }),
-          tripRates: buildEmptyTripRates(),
+          tripRates: attachClientOrderToRates(buildEmptyTripRates(), clients.length),
         },
       ],
     }));
@@ -228,13 +229,34 @@ function App() {
               ...client,
               name: trimmedName,
               isMisc: isMiscClient({ name: trimmedName }),
-              tripRates: normalizeTripRates(values.tripRates),
+              tripRates: attachClientOrderToRates(normalizeTripRates(values.tripRates), getClientOrder(client)),
             }
           : client,
       ),
     }));
 
     return true;
+  };
+
+  const reorderClients = (draggedClientId, targetClientId) => {
+    if (draggedClientId === targetClientId) return;
+
+    setAppState((current) => {
+      const orderedClients = sortClientsByOrder(current.clients || []);
+      const fromIndex = orderedClients.findIndex((client) => client.id === draggedClientId);
+      const toIndex = orderedClients.findIndex((client) => client.id === targetClientId);
+
+      if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return current;
+
+      const nextClients = [...orderedClients];
+      const [draggedClient] = nextClients.splice(fromIndex, 1);
+      nextClients.splice(toIndex, 0, draggedClient);
+
+      return {
+        ...current,
+        clients: stampClientOrder(nextClients),
+      };
+    });
   };
 
   const addInvoice = (clientId, values) => {
@@ -396,6 +418,7 @@ function App() {
           selectedMonth={selectedMonth}
           onAddClient={addClient}
           onUpdateClient={updateClient}
+          onReorderClients={reorderClients}
           onAddInvoice={addInvoice}
           onToggleInvoicePaid={toggleInvoicePaid}
           onDeleteInvoice={deleteInvoice}
@@ -585,6 +608,7 @@ function ClientsView({
   selectedMonth,
   onAddClient,
   onUpdateClient,
+  onReorderClients,
   onAddInvoice,
   onToggleInvoicePaid,
   onDeleteInvoice,
@@ -594,6 +618,8 @@ function ClientsView({
   const [editingClient, setEditingClient] = useState(null);
   const [expandedClientId, setExpandedClientId] = useState("");
   const [copiedNoticeClientId, setCopiedNoticeClientId] = useState("");
+  const [draggingClientId, setDraggingClientId] = useState("");
+  const clientDragRef = useRef({ active: false, clientId: "", timer: null });
 
   const createClient = (values) => {
     const clientId = onAddClient(values.name);
@@ -630,6 +656,52 @@ function ClientsView({
     window.setTimeout(() => {
       setCopiedNoticeClientId((current) => (current === clientId ? "" : current));
     }, 1800);
+  };
+
+  const clearClientDrag = () => {
+    if (clientDragRef.current.timer) {
+      window.clearTimeout(clientDragRef.current.timer);
+    }
+
+    clientDragRef.current = { active: false, clientId: "", timer: null };
+    setDraggingClientId("");
+  };
+
+  const startClientDragPress = (event, clientId) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (clientDragRef.current.timer) {
+      window.clearTimeout(clientDragRef.current.timer);
+    }
+
+    clientDragRef.current = {
+      active: false,
+      clientId,
+      timer: window.setTimeout(() => {
+        clientDragRef.current.active = true;
+        setDraggingClientId(clientId);
+      }, 260),
+    };
+  };
+
+  const moveClientDragPress = (event) => {
+    const dragState = clientDragRef.current;
+    if (!dragState.active || !dragState.clientId) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const targetClientElement = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest("[data-client-id]");
+    const targetClientId = targetClientElement?.dataset.clientId;
+
+    if (targetClientId && targetClientId !== dragState.clientId) {
+      onReorderClients(dragState.clientId, targetClientId);
+    }
   };
 
   return (
@@ -684,7 +756,12 @@ function ClientsView({
           const hasOpenInvoices = unpaidInvoices.length > 0;
 
           return (
-            <details className="panel client-disclosure" key={client.id} open={expandedClientId === client.id}>
+            <details
+              className={`panel client-disclosure ${draggingClientId === client.id ? "is-dragging" : ""}`}
+              key={client.id}
+              open={expandedClientId === client.id}
+              data-client-id={client.id}
+            >
               <summary
                 className="client-summary"
                 onClick={(event) => {
@@ -692,6 +769,18 @@ function ClientsView({
                   setExpandedClientId((current) => (current === client.id ? "" : client.id));
                 }}
               >
+                <button
+                  className="drag-handle"
+                  type="button"
+                  aria-label={`Reordenar ${client.name}`}
+                  title="Mantener presionado para reordenar"
+                  onPointerDown={(event) => startClientDragPress(event, client.id)}
+                  onPointerMove={moveClientDragPress}
+                  onPointerUp={clearClientDrag}
+                  onPointerCancel={clearClientDrag}
+                >
+                  <span aria-hidden="true">||</span>
+                </button>
                 <div className="client-name">
                   <h2>{client.name}</h2>
                 </div>
@@ -793,6 +882,7 @@ function InvoiceRow({ client, invoice, onToggleInvoicePaid, onDeleteInvoice }) {
   return (
     <details className={`invoice-row ${invoice.paid ? "is-paid" : ""}`}>
       <summary>
+        <span className="invoice-paper-icon" aria-hidden="true" />
         <span>
           <small>Nro. factura</small>
           <strong>{invoice.invoiceNumber}</strong>
@@ -1843,6 +1933,35 @@ function normalizeTripRates(rates) {
       ),
     ]),
   );
+}
+
+function getClientOrder(client, fallbackOrder = 0) {
+  const order = Number(client?.tripRates?.[CLIENT_ORDER_KEY]);
+  return Number.isFinite(order) ? order : fallbackOrder;
+}
+
+function attachClientOrderToRates(rates, order) {
+  return {
+    ...(rates || {}),
+    [CLIENT_ORDER_KEY]: Number.isFinite(Number(order)) ? Number(order) : 0,
+  };
+}
+
+function stampClientOrder(clients) {
+  return clients.map((client, index) => ({
+    ...client,
+    tripRates: attachClientOrderToRates(client.tripRates, index),
+  }));
+}
+
+function sortClientsByOrder(clients) {
+  return [...clients]
+    .map((client, index) => ({ client, order: getClientOrder(client, index), index }))
+    .sort((first, second) => {
+      if (first.order !== second.order) return first.order - second.order;
+      return first.index - second.index;
+    })
+    .map(({ client }) => client);
 }
 
 function sumAmounts(items) {
