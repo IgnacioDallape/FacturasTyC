@@ -593,6 +593,7 @@ function ClientsView({
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
   const [expandedClientId, setExpandedClientId] = useState("");
+  const [copiedNoticeClientId, setCopiedNoticeClientId] = useState("");
 
   const createClient = (values) => {
     const clientId = onAddClient(values.name);
@@ -619,6 +620,16 @@ function ClientsView({
     setExpandedClientId(clientId);
     setShowInvoiceModal(false);
     return true;
+  };
+
+  const copyOverdueNotice = async (clientId, overdueInvoices) => {
+    const wasCopied = await copyTextToClipboard(buildOverdueInvoicesMessage(overdueInvoices));
+    if (!wasCopied) return;
+
+    setCopiedNoticeClientId(clientId);
+    window.setTimeout(() => {
+      setCopiedNoticeClientId((current) => (current === clientId ? "" : current));
+    }, 1800);
   };
 
   return (
@@ -698,9 +709,24 @@ function ClientsView({
                   <span>Editar</span>
                 </button>
                 <SummaryMetric label="Total vencido" value={formatCurrency(overdueTotal)} />
-                <span className={`status-pill ${overdueCount ? "warning" : hasOpenInvoices ? "soft" : "ok"}`}>
-                  {overdueCount ? `${overdueCount} vencidas` : hasOpenInvoices ? "En termino" : "Al dia"}
-                </span>
+                <div className="client-status-actions">
+                  <span className={`status-pill ${overdueCount ? "warning" : hasOpenInvoices ? "soft" : "ok"}`}>
+                    {overdueCount ? `${overdueCount} vencidas` : hasOpenInvoices ? "En termino" : "Al dia"}
+                  </span>
+                  {overdueCount ? (
+                    <button
+                      className="copy-notice-button"
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        copyOverdueNotice(client.id, overdueInvoices);
+                      }}
+                    >
+                      {copiedNoticeClientId === client.id ? "Copiado" : "Copiar aviso"}
+                    </button>
+                  ) : null}
+                </div>
                 <span className="disclosure-arrow" aria-hidden="true" />
               </summary>
 
@@ -1867,6 +1893,46 @@ function getInvoiceStatusTone(invoice) {
   if (invoice.paid) return "ok";
   if (isOverdueInvoice(invoice)) return "warning";
   return "soft";
+}
+
+function buildOverdueInvoicesMessage(overdueInvoices) {
+  const invoiceNumbers = overdueInvoices
+    .map((invoice) => invoice.invoiceNumber?.trim())
+    .filter(Boolean)
+    .join(", ");
+
+  return [
+    "Buen dia, espero encontrarlos muy bien.",
+    `Tenemos pendientes las facturas ${invoiceNumbers || "vencidas"}, las mismas cuentan con mas de 30 dias de facturadas.`,
+    "Cuando podrian abonarse las mismas?",
+  ].join(" ");
+}
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fall through to the textarea fallback for restricted mobile browsers.
+    }
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.top = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  try {
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    document.body.removeChild(textarea);
+  }
 }
 
 function slugify(value) {
