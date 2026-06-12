@@ -295,29 +295,13 @@ function App() {
     }));
   };
 
-  const toggleInvoicePartialPaid = (invoiceId) => {
+  const toggleInvoicePartialPaid = (invoiceId, amountValue) => {
     const selectedInvoice = invoices.find((invoice) => invoice.id === invoiceId);
-    if (!selectedInvoice) return;
+    if (!selectedInvoice) return false;
 
     const invoiceAmount = Number(selectedInvoice.amount || 0);
-    const currentPartialAmount = Number(selectedInvoice.partialPaidAmount || 0);
-    const enteredAmount = window.prompt(
-      "Importe del pago parcial",
-      currentPartialAmount > 0 ? String(currentPartialAmount) : "",
-    );
-
-    if (enteredAmount === null) return;
-
-    const partialPaidAmount = parseAmountInput(enteredAmount);
-    if (partialPaidAmount === null) {
-      window.alert("Ingresa un importe valido para el pago parcial.");
-      return;
-    }
-
-    if (partialPaidAmount >= invoiceAmount) {
-      window.alert("El pago parcial debe ser menor al monto total de la factura. Para pago total, usa el tilde.");
-      return;
-    }
+    const partialPaidAmount = parseAmountInput(amountValue);
+    if (partialPaidAmount === null || partialPaidAmount >= invoiceAmount) return false;
 
     setAppState((current) => ({
       ...current,
@@ -332,6 +316,8 @@ function App() {
           : invoice,
       ),
     }));
+
+    return true;
   };
 
   const deleteInvoice = (invoiceId) => {
@@ -672,6 +658,7 @@ function ClientsView({
   const [showClientModal, setShowClientModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [editingClient, setEditingClient] = useState(null);
+  const [partialPaymentInvoice, setPartialPaymentInvoice] = useState(null);
   const [expandedClientId, setExpandedClientId] = useState("");
   const [copiedNoticeClientId, setCopiedNoticeClientId] = useState("");
   const [draggingClientId, setDraggingClientId] = useState("");
@@ -701,6 +688,16 @@ function ClientsView({
 
     setExpandedClientId(clientId);
     setShowInvoiceModal(false);
+    return true;
+  };
+
+  const savePartialPayment = (values) => {
+    if (!partialPaymentInvoice) return false;
+
+    const wasUpdated = onToggleInvoicePartialPaid(partialPaymentInvoice.id, values.amount);
+    if (!wasUpdated) return false;
+
+    setPartialPaymentInvoice(null);
     return true;
   };
 
@@ -806,6 +803,16 @@ function ClientsView({
         </FormModal>
       ) : null}
 
+      {partialPaymentInvoice ? (
+        <FormModal title="Pago parcial" onClose={() => setPartialPaymentInvoice(null)}>
+          <PartialPaymentForm
+            invoice={partialPaymentInvoice}
+            onSubmit={savePartialPayment}
+            onCancel={() => setPartialPaymentInvoice(null)}
+          />
+        </FormModal>
+      ) : null}
+
       <section className="client-list">
         {clients.map((client) => {
           const clientInvoices = sortInvoicesByNewest(invoices.filter((invoice) => invoice.clientId === client.id));
@@ -894,7 +901,7 @@ function ClientsView({
                           client={client}
                           invoice={invoice}
                           onToggleInvoicePaid={onToggleInvoicePaid}
-                          onToggleInvoicePartialPaid={onToggleInvoicePartialPaid}
+                          onOpenPartialPayment={setPartialPaymentInvoice}
                           onDeleteInvoice={onDeleteInvoice}
                         />
                       ))
@@ -917,7 +924,7 @@ function ClientsView({
                           client={client}
                           invoice={invoice}
                           onToggleInvoicePaid={onToggleInvoicePaid}
-                          onToggleInvoicePartialPaid={onToggleInvoicePartialPaid}
+                          onOpenPartialPayment={setPartialPaymentInvoice}
                           onDeleteInvoice={onDeleteInvoice}
                         />
                       ))
@@ -935,7 +942,7 @@ function ClientsView({
   );
 }
 
-function InvoiceRow({ client, invoice, onToggleInvoicePaid, onToggleInvoicePartialPaid, onDeleteInvoice }) {
+function InvoiceRow({ client, invoice, onToggleInvoicePaid, onOpenPartialPayment, onDeleteInvoice }) {
   const balance = getInvoiceBalance(invoice);
   const partialPaidAmount = Number(invoice.partialPaidAmount || 0);
   const invoiceTitle = partialPaidAmount > 0 && !invoice.paid
@@ -971,7 +978,8 @@ function InvoiceRow({ client, invoice, onToggleInvoicePaid, onToggleInvoiceParti
           type="button"
           aria-label={invoice.partialPaid ? "Quitar pago parcial" : "Marcar pago parcial"}
           title={invoice.partialPaid ? "Quitar pago parcial" : "Marcar pago parcial"}
-          onClick={() => onToggleInvoicePartialPaid(invoice.id)}
+          disabled={invoice.paid}
+          onClick={() => onOpenPartialPayment(invoice)}
         >
           ½
         </button>
@@ -1335,6 +1343,81 @@ function FormModal({ title, children, onClose }) {
         {children}
       </section>
     </div>
+  );
+}
+
+function PartialPaymentForm({ invoice, onSubmit, onCancel }) {
+  const [amount, setAmount] = useState(
+    Number(invoice.partialPaidAmount || 0) > 0 ? String(invoice.partialPaidAmount) : "",
+  );
+  const [error, setError] = useState("");
+  const invoiceAmount = Number(invoice.amount || 0);
+  const partialAmount = parseAmountInput(amount);
+  const previewBalance = partialAmount === null ? invoiceAmount : Math.max(invoiceAmount - partialAmount, 0);
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+
+    if (partialAmount === null) {
+      setError("Ingresa un importe valido.");
+      return;
+    }
+
+    if (partialAmount >= invoiceAmount) {
+      setError("El pago parcial debe ser menor al monto total. Para pago total, usa el tilde.");
+      return;
+    }
+
+    if (!onSubmit({ amount })) {
+      setError("No se pudo guardar el pago parcial. Intentalo de nuevo.");
+    }
+  };
+
+  return (
+    <form className="partial-payment-form" onSubmit={handleSubmit}>
+      <div className="partial-payment-summary">
+        <div>
+          <span>Factura</span>
+          <strong>{invoice.invoiceNumber}</strong>
+        </div>
+        <div>
+          <span>Monto original</span>
+          <strong>{formatCurrency(invoiceAmount)}</strong>
+        </div>
+        <div>
+          <span>Saldo luego del pago</span>
+          <strong>{formatCurrency(previewBalance)}</strong>
+        </div>
+      </div>
+
+      <label>
+        Importe pagado parcialmente
+        <input
+          autoFocus
+          inputMode="numeric"
+          placeholder="Ej: 1456933"
+          value={amount}
+          onChange={(event) => {
+            setAmount(event.target.value);
+            setError("");
+          }}
+        />
+      </label>
+
+      <div className="partial-payment-actions">
+        <button className="primary-button" type="submit">
+          Guardar parcial
+        </button>
+        <button className="ghost-button" type="button" onClick={() => onSubmit({ amount: "0" })}>
+          Quitar parcial
+        </button>
+        <button className="ghost-button" type="button" onClick={onCancel}>
+          Cancelar
+        </button>
+      </div>
+
+      {error ? <p className="form-error">{error}</p> : null}
+    </form>
   );
 }
 

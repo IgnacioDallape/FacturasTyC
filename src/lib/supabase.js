@@ -24,7 +24,10 @@ export async function loadRemoteState() {
   if (!supabase) return null;
 
   const relationalState = await loadRelationalState();
-  if (relationalState) return relationalState;
+  if (relationalState) {
+    const legacyState = await loadLegacyStateSafely();
+    return mergeInvoicePartialFields(relationalState, legacyState);
+  }
 
   return loadLegacyState();
 }
@@ -33,7 +36,10 @@ export async function saveRemoteState(state, previousState = null) {
   if (!supabase) return;
 
   const relationalState = await saveRelationalState(state, previousState);
-  if (relationalState) return relationalState;
+  if (relationalState) {
+    const legacyState = await saveLegacyState(state, previousState);
+    return mergeInvoicePartialFields(relationalState, legacyState || state);
+  }
 
   return saveLegacyState(state, previousState);
 }
@@ -47,6 +53,14 @@ async function loadLegacyState() {
 
   if (error) throw error;
   return data?.data || null;
+}
+
+async function loadLegacyStateSafely() {
+  try {
+    return await loadLegacyState();
+  } catch {
+    return null;
+  }
 }
 
 async function saveLegacyState(state, previousState = null) {
@@ -344,6 +358,28 @@ function mergeRemoteState(remoteState, previousState, nextState) {
     invoices: mergeCollectionById(remoteState.invoices, previousState.invoices, nextState.invoices),
     unbilledTrips: mergeCollectionById(remoteState.unbilledTrips, previousState.unbilledTrips, nextState.unbilledTrips),
     fiscalCredits: mergeCollectionById(remoteState.fiscalCredits, previousState.fiscalCredits, nextState.fiscalCredits),
+  };
+}
+
+function mergeInvoicePartialFields(baseState, overlayState) {
+  if (!baseState || !overlayState?.invoices?.length) return baseState;
+
+  const overlayInvoicesById = new Map(overlayState.invoices.map((invoice) => [invoice.id, invoice]));
+
+  return {
+    ...baseState,
+    invoices: (baseState.invoices || []).map((invoice) => {
+      const overlayInvoice = overlayInvoicesById.get(invoice.id);
+      if (!overlayInvoice) return invoice;
+      const overlayPartialPaidAmount = Number(overlayInvoice.partialPaidAmount || 0);
+      if (overlayPartialPaidAmount <= 0) return invoice;
+
+      return {
+        ...invoice,
+        partialPaid: true,
+        partialPaidAmount: overlayPartialPaidAmount,
+      };
+    }),
   };
 }
 

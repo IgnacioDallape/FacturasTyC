@@ -45,8 +45,18 @@ export async function loadAppState() {
   const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || FALLBACK_SUPABASE_ANON_KEY;
   const relationalState = await loadRelationalAppState(supabaseUrl, supabaseKey);
 
-  if (relationalState) return relationalState;
+  if (relationalState) {
+    const legacyState = await loadLegacyAppState(supabaseUrl, supabaseKey);
+    return {
+      ...relationalState,
+      state: mergeInvoicePartialFields(relationalState.state, legacyState?.state),
+    };
+  }
 
+  return loadLegacyAppState(supabaseUrl, supabaseKey);
+}
+
+async function loadLegacyAppState(supabaseUrl, supabaseKey) {
   const response = await fetch(
     `${supabaseUrl}/rest/v1/app_state?id=eq.${encodeURIComponent(APP_STATE_ID)}&select=data,updated_at`,
     {
@@ -68,6 +78,28 @@ export async function loadAppState() {
   return {
     state: normalizeState(row?.data),
     updatedAt: row?.updated_at || null,
+  };
+}
+
+function mergeInvoicePartialFields(baseState, overlayState) {
+  if (!baseState || !overlayState?.invoices?.length) return baseState;
+
+  const overlayInvoicesById = new Map(overlayState.invoices.map((invoice) => [invoice.id, invoice]));
+
+  return {
+    ...baseState,
+    invoices: (baseState.invoices || []).map((invoice) => {
+      const overlayInvoice = overlayInvoicesById.get(invoice.id);
+      if (!overlayInvoice) return invoice;
+      const overlayPartialPaidAmount = Number(overlayInvoice.partialPaidAmount || 0);
+      if (overlayPartialPaidAmount <= 0) return invoice;
+
+      return {
+        ...invoice,
+        partialPaid: true,
+        partialPaidAmount: overlayPartialPaidAmount,
+      };
+    }),
   };
 }
 
