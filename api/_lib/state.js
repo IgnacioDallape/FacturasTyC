@@ -146,6 +146,7 @@ function fromInvoiceRow(row) {
     date: row.date,
     amount: Number(row.amount || 0),
     paid: Boolean(row.paid),
+    partialPaid: Boolean(row.partial_paid),
     customerName: row.customer_name || "",
     cargoNumber: row.cargo_number || "",
   };

@@ -275,7 +275,16 @@ function App() {
     setAppState((current) => ({
       ...current,
       invoices: current.invoices.map((invoice) =>
-        invoice.id === invoiceId ? { ...invoice, paid: !invoice.paid } : invoice,
+        invoice.id === invoiceId ? { ...invoice, paid: !invoice.paid, partialPaid: invoice.paid ? invoice.partialPaid : false } : invoice,
+      ),
+    }));
+  };
+
+  const toggleInvoicePartialPaid = (invoiceId) => {
+    setAppState((current) => ({
+      ...current,
+      invoices: current.invoices.map((invoice) =>
+        invoice.id === invoiceId ? { ...invoice, paid: false, partialPaid: !invoice.partialPaid } : invoice,
       ),
     }));
   };
@@ -421,6 +430,7 @@ function App() {
           onReorderClients={reorderClients}
           onAddInvoice={addInvoice}
           onToggleInvoicePaid={toggleInvoicePaid}
+          onToggleInvoicePartialPaid={toggleInvoicePartialPaid}
           onDeleteInvoice={deleteInvoice}
         />
       ) : activeView === "viajes" ? (
@@ -611,6 +621,7 @@ function ClientsView({
   onReorderClients,
   onAddInvoice,
   onToggleInvoicePaid,
+  onToggleInvoicePartialPaid,
   onDeleteInvoice,
 }) {
   const [showClientModal, setShowClientModal] = useState(false);
@@ -784,18 +795,6 @@ function ClientsView({
                 <div className="client-name">
                   <h2>{client.name}</h2>
                 </div>
-                <button
-                  className="ghost-button compact-action"
-                  type="button"
-                  aria-label={`Editar ${client.name}`}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setEditingClient(client);
-                  }}
-                >
-                  <span aria-hidden="true" className="edit-icon">✎</span>
-                </button>
                 <SummaryMetric label="Total vencido" value={formatCurrency(overdueTotal)} />
                 <div className="client-status-actions">
                   <span className={`status-pill ${overdueCount ? "warning" : hasOpenInvoices ? "soft" : "ok"}`}>
@@ -815,6 +814,18 @@ function ClientsView({
                     </button>
                   ) : null}
                 </div>
+                <button
+                  className="ghost-button compact-action"
+                  type="button"
+                  aria-label={`Editar ${client.name}`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setEditingClient(client);
+                  }}
+                >
+                  <span aria-hidden="true" className="edit-icon">✎</span>
+                </button>
                 <span className="disclosure-arrow" aria-hidden="true" />
               </summary>
 
@@ -838,6 +849,7 @@ function ClientsView({
                           client={client}
                           invoice={invoice}
                           onToggleInvoicePaid={onToggleInvoicePaid}
+                          onToggleInvoicePartialPaid={onToggleInvoicePartialPaid}
                           onDeleteInvoice={onDeleteInvoice}
                         />
                       ))
@@ -860,6 +872,7 @@ function ClientsView({
                           client={client}
                           invoice={invoice}
                           onToggleInvoicePaid={onToggleInvoicePaid}
+                          onToggleInvoicePartialPaid={onToggleInvoicePartialPaid}
                           onDeleteInvoice={onDeleteInvoice}
                         />
                       ))
@@ -877,9 +890,9 @@ function ClientsView({
   );
 }
 
-function InvoiceRow({ client, invoice, onToggleInvoicePaid, onDeleteInvoice }) {
+function InvoiceRow({ client, invoice, onToggleInvoicePaid, onToggleInvoicePartialPaid, onDeleteInvoice }) {
   return (
-    <div className={`invoice-row ${invoice.paid ? "is-paid" : ""}`}>
+    <div className={`invoice-row ${invoice.paid ? "is-paid" : ""} ${invoice.partialPaid ? "is-partial" : ""}`}>
       <span>
         <small>Nro. factura</small>
         <strong>{invoice.invoiceNumber}</strong>
@@ -901,6 +914,15 @@ function InvoiceRow({ client, invoice, onToggleInvoicePaid, onDeleteInvoice }) {
           onClick={() => onToggleInvoicePaid(invoice.id)}
         >
           {invoice.paid ? "↺" : "✓"}
+        </button>
+        <button
+          className={`icon-action partial ${invoice.partialPaid ? "is-active" : ""}`}
+          type="button"
+          aria-label={invoice.partialPaid ? "Quitar pago parcial" : "Marcar pago parcial"}
+          title={invoice.partialPaid ? "Quitar pago parcial" : "Marcar pago parcial"}
+          onClick={() => onToggleInvoicePartialPaid(invoice.id)}
+        >
+          ½
         </button>
         <button
           className="icon-action danger"
@@ -1002,7 +1024,7 @@ function TripsView({
                       const tripBillableAmount = getTripBillableAmount(trip, client);
 
                       return (
-                        <details className={`invoice-row ${trip.billed ? "is-paid" : ""}`} key={trip.id}>
+                        <details className={`trip-row ${trip.billed ? "is-paid" : ""}`} key={trip.id}>
                           <summary>
                             <span>
                               <small>Trayecto</small>
@@ -1846,6 +1868,7 @@ function normalizeInvoice(values) {
     date: values.date || currentDate,
     amount: Number(values.amount || 0),
     paid: Boolean(values.paid),
+    partialPaid: false,
     customerName: values.customerName?.trim() || "",
     cargoNumber: values.cargoNumber?.trim() || "",
   };

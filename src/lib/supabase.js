@@ -184,7 +184,13 @@ async function persistRelationalCollection(table, items = [], previousItems = []
 
   if (rows.length) {
     const { error } = await supabase.from(table).upsert(rows, { onConflict: "id" });
-    if (error) throw error;
+    if (error && table === RELATIONAL_TABLES.invoices && isMissingColumnError(error, "partial_paid")) {
+      const compatibleRows = rows.map(({ partial_paid, ...row }) => row);
+      const retry = await supabase.from(table).upsert(compatibleRows, { onConflict: "id" });
+      if (retry.error) throw retry.error;
+    } else if (error) {
+      throw error;
+    }
   }
 
   await deleteRemovedRows(table, previousItems, items);
@@ -240,6 +246,7 @@ function fromInvoiceRow(row) {
     date: row.date,
     amount: Number(row.amount || 0),
     paid: Boolean(row.paid),
+    partialPaid: Boolean(row.partial_paid),
     customerName: row.customer_name || "",
     cargoNumber: row.cargo_number || "",
   };
@@ -253,6 +260,7 @@ function toInvoiceRow(invoice) {
     date: invoice.date,
     amount: Number(invoice.amount || 0),
     paid: Boolean(invoice.paid),
+    partial_paid: Boolean(invoice.partialPaid),
     customer_name: invoice.customerName || "",
     cargo_number: invoice.cargoNumber || "",
   };
@@ -309,6 +317,15 @@ function isMissingRelationError(error) {
     error.code === "42P01" ||
     error.code === "PGRST205" ||
     /does not exist|Could not find the table|schema cache/i.test(error.message || "")
+  );
+}
+
+function isMissingColumnError(error, columnName) {
+  if (!error) return false;
+
+  return (
+    error.code === "PGRST204" ||
+    new RegExp(`\\b${columnName}\\b`, "i").test(error.message || "")
   );
 }
 

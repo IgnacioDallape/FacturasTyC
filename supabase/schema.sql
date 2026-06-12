@@ -58,6 +58,7 @@ create table if not exists public.facturas_invoices (
   date date not null,
   amount numeric(14, 2) not null default 0,
   paid boolean not null default false,
+  partial_paid boolean not null default false,
   customer_name text not null default '',
   cargo_number text not null default '',
   created_at timestamptz not null default now(),
@@ -91,6 +92,9 @@ on public.facturas_invoices(client_id, date desc);
 
 create index if not exists facturas_invoices_paid_date_idx
 on public.facturas_invoices(paid, date desc);
+
+alter table public.facturas_invoices
+add column if not exists partial_paid boolean not null default false;
 
 create index if not exists facturas_unbilled_trips_client_date_idx
 on public.facturas_unbilled_trips(client_id, date desc);
@@ -286,6 +290,7 @@ insert into public.facturas_invoices (
   date,
   amount,
   paid,
+  partial_paid,
   customer_name,
   cargo_number
 )
@@ -304,6 +309,7 @@ select
     else 0
   end,
   case when item ? 'paid' then coalesce((item->>'paid')::boolean, false) else false end,
+  case when item ? 'partialPaid' then coalesce((item->>'partialPaid')::boolean, false) else false end,
   coalesce(item->>'customerName', ''),
   coalesce(item->>'cargoNumber', '')
 from invoice_items
@@ -315,6 +321,7 @@ on conflict (id) do update set
   date = excluded.date,
   amount = excluded.amount,
   paid = excluded.paid,
+  partial_paid = excluded.partial_paid,
   customer_name = excluded.customer_name,
   cargo_number = excluded.cargo_number;
 
