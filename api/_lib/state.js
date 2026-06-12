@@ -147,6 +147,7 @@ function fromInvoiceRow(row) {
     amount: Number(row.amount || 0),
     paid: Boolean(row.paid),
     partialPaid: Boolean(row.partial_paid),
+    partialPaidAmount: Number(row.partial_paid_amount || 0),
     customerName: row.customer_name || "",
     cargoNumber: row.cargo_number || "",
   };
@@ -210,8 +211,8 @@ export function buildSummary(state, month = getCurrentMonth()) {
       id: client.id,
       name: client.name,
       isMisc: isMiscClient(client),
-      totalDue: sumAmounts(unpaidInvoices),
-      overdueTotal: sumAmounts(overdueInvoices),
+      totalDue: sumInvoiceBalances(unpaidInvoices),
+      overdueTotal: sumInvoiceBalances(overdueInvoices),
       monthTotal: sumAmounts(monthlyInvoices),
       monthVat: calculateIncludedVat(sumAmounts(monthlyInvoices)),
       pendingCount: overdueInvoices.length,
@@ -277,6 +278,18 @@ export function getCurrentMonth() {
 
 function sumAmounts(items) {
   return items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+}
+
+function sumInvoiceBalances(invoices) {
+  return invoices.reduce((sum, invoice) => sum + getInvoiceBalance(invoice), 0);
+}
+
+function getInvoiceBalance(invoice) {
+  if (invoice?.paid) return 0;
+
+  const amount = Number(invoice?.amount || 0);
+  const partialPaidAmount = Number(invoice?.partialPaidAmount || 0);
+  return Math.max(amount - partialPaidAmount, 0);
 }
 
 function getTripBillableAmount(trip, client) {

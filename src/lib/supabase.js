@@ -184,8 +184,8 @@ async function persistRelationalCollection(table, items = [], previousItems = []
 
   if (rows.length) {
     const { error } = await supabase.from(table).upsert(rows, { onConflict: "id" });
-    if (error && table === RELATIONAL_TABLES.invoices && isMissingColumnError(error, "partial_paid")) {
-      const compatibleRows = rows.map(({ partial_paid, ...row }) => row);
+    if (error && table === RELATIONAL_TABLES.invoices && isMissingInvoicePartialColumnError(error)) {
+      const compatibleRows = rows.map(({ partial_paid, partial_paid_amount, ...row }) => row);
       const retry = await supabase.from(table).upsert(compatibleRows, { onConflict: "id" });
       if (retry.error) throw retry.error;
     } else if (error) {
@@ -247,6 +247,7 @@ function fromInvoiceRow(row) {
     amount: Number(row.amount || 0),
     paid: Boolean(row.paid),
     partialPaid: Boolean(row.partial_paid),
+    partialPaidAmount: Number(row.partial_paid_amount || 0),
     customerName: row.customer_name || "",
     cargoNumber: row.cargo_number || "",
   };
@@ -261,6 +262,7 @@ function toInvoiceRow(invoice) {
     amount: Number(invoice.amount || 0),
     paid: Boolean(invoice.paid),
     partial_paid: Boolean(invoice.partialPaid),
+    partial_paid_amount: Number(invoice.partialPaidAmount || 0),
     customer_name: invoice.customerName || "",
     cargo_number: invoice.cargoNumber || "",
   };
@@ -320,12 +322,12 @@ function isMissingRelationError(error) {
   );
 }
 
-function isMissingColumnError(error, columnName) {
+function isMissingInvoicePartialColumnError(error) {
   if (!error) return false;
 
   return (
     error.code === "PGRST204" ||
-    new RegExp(`\\b${columnName}\\b`, "i").test(error.message || "")
+    /\bpartial_paid\b|\bpartial_paid_amount\b/i.test(error.message || "")
   );
 }
 

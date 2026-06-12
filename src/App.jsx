@@ -43,6 +43,8 @@ const initialState = {
       date: currentDate,
       amount: 485000,
       paid: false,
+      partialPaid: false,
+      partialPaidAmount: 0,
       customerName: "",
     },
     {
@@ -52,6 +54,8 @@ const initialState = {
       date: currentDate,
       amount: 329000,
       paid: true,
+      partialPaid: false,
+      partialPaidAmount: 0,
       customerName: "",
     },
     {
@@ -61,6 +65,8 @@ const initialState = {
       date: currentDate,
       amount: 192500,
       paid: false,
+      partialPaid: false,
+      partialPaidAmount: 0,
       customerName: "Transporte Sur",
     },
   ],
@@ -94,6 +100,8 @@ const blankInvoice = {
   date: currentDate,
   amount: "",
   paid: false,
+  partialPaid: false,
+  partialPaidAmount: 0,
   customerName: "",
   cargoNumber: "",
 };
@@ -144,7 +152,7 @@ function App() {
 
         return {
           ...client,
-          totalDue: sumAmounts(unpaidInvoices),
+          totalDue: sumInvoiceBalances(unpaidInvoices),
           monthTotal: sumAmounts(monthlyInvoices),
           monthVat: calculateIncludedVat(sumAmounts(monthlyInvoices)),
           pendingCount: overdueInvoices.length,
@@ -275,16 +283,53 @@ function App() {
     setAppState((current) => ({
       ...current,
       invoices: current.invoices.map((invoice) =>
-        invoice.id === invoiceId ? { ...invoice, paid: !invoice.paid, partialPaid: invoice.paid ? invoice.partialPaid : false } : invoice,
+        invoice.id === invoiceId
+          ? {
+              ...invoice,
+              paid: !invoice.paid,
+              partialPaid: invoice.paid ? invoice.partialPaid : false,
+              partialPaidAmount: invoice.paid ? invoice.partialPaidAmount || 0 : 0,
+            }
+          : invoice,
       ),
     }));
   };
 
   const toggleInvoicePartialPaid = (invoiceId) => {
+    const selectedInvoice = invoices.find((invoice) => invoice.id === invoiceId);
+    if (!selectedInvoice) return;
+
+    const invoiceAmount = Number(selectedInvoice.amount || 0);
+    const currentPartialAmount = Number(selectedInvoice.partialPaidAmount || 0);
+    const enteredAmount = window.prompt(
+      "Importe del pago parcial",
+      currentPartialAmount > 0 ? String(currentPartialAmount) : "",
+    );
+
+    if (enteredAmount === null) return;
+
+    const partialPaidAmount = parseAmountInput(enteredAmount);
+    if (partialPaidAmount === null) {
+      window.alert("Ingresa un importe valido para el pago parcial.");
+      return;
+    }
+
+    if (partialPaidAmount >= invoiceAmount) {
+      window.alert("El pago parcial debe ser menor al monto total de la factura. Para pago total, usa el tilde.");
+      return;
+    }
+
     setAppState((current) => ({
       ...current,
       invoices: current.invoices.map((invoice) =>
-        invoice.id === invoiceId ? { ...invoice, paid: false, partialPaid: !invoice.partialPaid } : invoice,
+        invoice.id === invoiceId
+          ? {
+              ...invoice,
+              paid: false,
+              partialPaid: partialPaidAmount > 0,
+              partialPaidAmount: partialPaidAmount > 0 ? partialPaidAmount : 0,
+            }
+          : invoice,
       ),
     }));
   };
@@ -769,7 +814,7 @@ function ClientsView({
           const unpaidInvoices = clientInvoices.filter((invoice) => !invoice.paid);
           const paidInvoices = clientInvoices.filter((invoice) => invoice.paid);
           const overdueInvoices = unpaidInvoices.filter(isOverdueInvoice);
-          const overdueTotal = sumAmounts(overdueInvoices);
+          const overdueTotal = sumInvoiceBalances(overdueInvoices);
           const overdueCount = overdueInvoices.length;
           const hasOpenInvoices = unpaidInvoices.length > 0;
 
@@ -891,8 +936,14 @@ function ClientsView({
 }
 
 function InvoiceRow({ client, invoice, onToggleInvoicePaid, onToggleInvoicePartialPaid, onDeleteInvoice }) {
+  const balance = getInvoiceBalance(invoice);
+  const partialPaidAmount = Number(invoice.partialPaidAmount || 0);
+  const invoiceTitle = partialPaidAmount > 0 && !invoice.paid
+    ? `Factura ${formatCurrency(invoice.amount)} - Pago parcial ${formatCurrency(partialPaidAmount)} - Saldo ${formatCurrency(balance)}`
+    : "";
+
   return (
-    <div className={`invoice-row ${invoice.paid ? "is-paid" : ""} ${invoice.partialPaid ? "is-partial" : ""}`}>
+    <div className={`invoice-row ${invoice.paid ? "is-paid" : ""} ${invoice.partialPaid ? "is-partial" : ""}`} title={invoiceTitle}>
       <span>
         <small>Nro. factura</small>
         <strong>{invoice.invoiceNumber}</strong>
@@ -902,8 +953,8 @@ function InvoiceRow({ client, invoice, onToggleInvoicePaid, onToggleInvoiceParti
         <strong>{formatDate(invoice.date)}</strong>
       </span>
       <span>
-        <small>Monto</small>
-        <strong>{formatCurrency(invoice.amount)}</strong>
+        <small>{partialPaidAmount > 0 && !invoice.paid ? "Saldo" : "Monto"}</small>
+        <strong>{formatCurrency(invoice.paid ? invoice.amount : balance)}</strong>
       </span>
       <div className="invoice-inline-actions">
         <button
@@ -1869,6 +1920,7 @@ function normalizeInvoice(values) {
     amount: Number(values.amount || 0),
     paid: Boolean(values.paid),
     partialPaid: false,
+    partialPaidAmount: 0,
     customerName: values.customerName?.trim() || "",
     cargoNumber: values.cargoNumber?.trim() || "",
   };
@@ -1981,6 +2033,29 @@ function sortClientsByOrder(clients) {
 
 function sumAmounts(items) {
   return items.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+}
+
+function sumInvoiceBalances(invoices) {
+  return invoices.reduce((sum, invoice) => sum + getInvoiceBalance(invoice), 0);
+}
+
+function getInvoiceBalance(invoice) {
+  if (invoice?.paid) return 0;
+
+  const amount = Number(invoice?.amount || 0);
+  const partialPaidAmount = Number(invoice?.partialPaidAmount || 0);
+  return Math.max(amount - partialPaidAmount, 0);
+}
+
+function parseAmountInput(value) {
+  const normalizedValue = String(value || "")
+    .trim()
+    .replace(/\s/g, "")
+    .replace(/\$/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".");
+  const amount = Number(normalizedValue);
+  return Number.isFinite(amount) ? amount : null;
 }
 
 function getTripBillableAmount(trip, client) {
