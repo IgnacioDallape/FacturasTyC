@@ -964,7 +964,7 @@ function InvoiceRow({ client, invoice, onToggleInvoicePaid, onOpenPartialPayment
           </>
         ) : (
           <>
-            <small>Nro. factura</small>
+            <small>Factura</small>
             <strong>{invoice.invoiceNumber}</strong>
           </>
         )}
