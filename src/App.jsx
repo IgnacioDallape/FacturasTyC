@@ -945,19 +945,33 @@ function ClientsView({
 function InvoiceRow({ client, invoice, onToggleInvoicePaid, onOpenPartialPayment, onDeleteInvoice }) {
   const balance = getInvoiceBalance(invoice);
   const partialPaidAmount = Number(invoice.partialPaidAmount || 0);
+  const miscCustomerName = isMiscClient(client) ? invoice.customerName?.trim() || "" : "";
   const invoiceTitle = partialPaidAmount > 0 && !invoice.paid
     ? `Factura ${formatCurrency(invoice.amount)} - Pago parcial ${formatCurrency(partialPaidAmount)} - Saldo ${formatCurrency(balance)}`
     : "";
 
   return (
-    <div className={`invoice-row ${invoice.paid ? "is-paid" : ""} ${invoice.partialPaid ? "is-partial" : ""}`} title={invoiceTitle}>
-      <span>
-        <small>Nro. factura</small>
-        <strong>{invoice.invoiceNumber}</strong>
+    <div
+      className={`invoice-row ${invoice.paid ? "is-paid" : ""} ${invoice.partialPaid ? "is-partial" : ""} ${miscCustomerName ? "has-customer" : ""}`}
+      title={invoiceTitle}
+    >
+      <span className={`invoice-primary-copy ${miscCustomerName ? "with-customer" : ""}`}>
+        {miscCustomerName ? (
+          <>
+            <small>Cliente</small>
+            <strong>{miscCustomerName}</strong>
+            <small className="invoice-secondary-meta">Fact. {invoice.invoiceNumber}</small>
+          </>
+        ) : (
+          <>
+            <small>Nro. factura</small>
+            <strong>{invoice.invoiceNumber}</strong>
+          </>
+        )}
       </span>
       <span>
         <small>Fecha</small>
-        <strong>{formatDate(invoice.date)}</strong>
+        <strong>{formatShortDate(invoice.date)}</strong>
       </span>
       <span>
         <small>{partialPaidAmount > 0 && !invoice.paid ? "Saldo" : "Monto"}</small>
@@ -2339,6 +2353,19 @@ function formatDate(value) {
     month: "2-digit",
     year: "numeric",
   }).format(date);
+}
+
+function formatShortDate(value) {
+  if (!value) return "Sin fecha";
+  const [year, month, day] = value.split("-").map(Number);
+  if (Number.isFinite(year) && Number.isFinite(month) && Number.isFinite(day)) {
+    return `${day}-${month}-${String(year).slice(-2)}`;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return `${date.getDate()}-${date.getMonth() + 1}-${String(date.getFullYear()).slice(-2)}`;
 }
 
 const chartColors = ["#0f5f4b", "#2eb384", "#c86f1c", "#e88902", "#627088", "#d7dde5"];

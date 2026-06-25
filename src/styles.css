@@ -1066,13 +1066,13 @@ h2 {
 
 .invoice-row {
   display: grid;
-  grid-template-columns: minmax(90px, 1fr) minmax(92px, auto) minmax(120px, auto) auto;
+  grid-template-columns: minmax(104px, 1.05fr) minmax(80px, 0.8fr) minmax(128px, 0.95fr) auto;
   gap: 12px;
   align-items: center;
-  min-height: 40px;
-  max-height: 40px;
+  min-height: 52px;
+  max-height: none;
   overflow: hidden;
-  padding: 5px 10px 5px 12px;
+  padding: 8px 10px 8px 12px;
   border-radius: var(--radius-md);
   border: 1px solid rgba(126, 100, 47, 0.14);
   border-left: 3px solid rgba(177, 95, 0, 0.48);
@@ -1121,6 +1121,10 @@ h2 {
   min-width: 0;
 }
 
+.invoice-primary-copy.with-customer {
+  gap: 3px;
+}
+
 .invoice-row small {
   color: var(--text-soft);
   font-size: 0.58rem;
@@ -1136,6 +1140,37 @@ h2 {
   line-height: 1.05;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.invoice-row > span:nth-child(2) strong {
+  letter-spacing: -0.01em;
+}
+
+.invoice-secondary-meta {
+  color: var(--text-soft);
+  font-size: 0.62rem;
+  letter-spacing: 0.01em;
+}
+
+.invoice-row.has-customer {
+  min-height: 56px;
+  max-height: none;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  align-items: start;
+}
+
+.invoice-row.has-customer .invoice-inline-actions {
+  align-self: center;
+}
+
+.invoice-row.has-customer .invoice-primary-copy strong {
+  display: -webkit-box;
+  overflow: hidden;
+  white-space: normal;
+  text-overflow: unset;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .invoice-inline-actions {
@@ -1668,11 +1703,11 @@ textarea:focus {
   }
 
   .invoice-row {
-    grid-template-columns: minmax(0, 1fr) minmax(76px, auto) minmax(88px, auto) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(68px, auto) minmax(96px, auto) auto;
     gap: 7px;
-    min-height: 40px;
+    min-height: 48px;
     max-height: none;
-    padding: 5px 8px;
+    padding: 7px 8px;
   }
 
   .trip-row summary {
